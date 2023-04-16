@@ -248,6 +248,21 @@ extern int bgForcePowerCost[NUM_FORCE_POWERS][NUM_FORCE_POWER_LEVELS];
 
 #define	PMF_ALL_TIMES	(PMF_TIME_WATERJUMP|PMF_TIME_LAND|PMF_TIME_KNOCKBACK)
 
+//japro/ratmod movement styles enum start
+typedef enum {
+	MOVEMENT_JK2 = 0,
+	MOVEMENT_PJK,
+	MOVEMENT_VQ3,
+	MOVEMENT_CPMA,
+	MOVEMENT_WSW,
+	MOVEMENT_QW,
+	MOVEMENT_SLICK,
+	MOVEMENT_SLIDE,
+	MOVEMENT_SPEED,
+
+	MOVEMENT_NUM_MOVEMENTS,
+} movement_t; //japro/dfmania/ratmod movement styles enum end
+
 #define	MAXTOUCH	32
 typedef struct {
 	// state (in / out)
@@ -282,7 +297,10 @@ typedef struct {
 	// for fixed msec Pmove
 	int			pmove_fixed;
 	int			pmove_msec;
-
+	int			pmove_float; //japro - pmove float
+    int			pmove_movement; // dfmania/ratmod - selects movement style
+	int			pmove_autoJump; //japro - hold to jump
+	qboolean	pmove_stepSlideFix; //japro/jka stepslidefix
 	// callbacks to test the world
 	// these will be different functions during game and cgame
 	void		(*trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask );
@@ -323,7 +341,13 @@ typedef enum {
 	STAT_ARMOR,				
 	STAT_DEAD_YAW,					// look this direction when dead (FIXME: get rid of?)
 	STAT_CLIENTS_READY,				// bit mask of clients wishing to exit the intermission (FIXME: configstring?)
-	STAT_MAX_HEALTH					// health / armor limit, changable by handicap
+	STAT_MAX_HEALTH,				// health / armor limit, changable by handicap
+	STAT_DASHTIME,					//japro wsw movement
+	STAT_LASTJUMPSPEED,				//japro wsw movement
+	STAT_WJTIME,					//japro wsw movement
+	STAT_JUMPTIME,					//japro jumptime
+	STAT_SLIDETIMEOUT,				//ratmod q4 slide movement
+	STAT_EXTFLAGS,					//ratmod q4 slide movement
 } statIndex_t;
 
 
@@ -350,6 +374,8 @@ typedef enum {
 	PERS_CAPTURES					// captures
 } persEnum_t;
 
+// stats[STAT_EXTFLAGS]
+#define EXTFL_SLIDING 1
 
 // entityState_t->eFlags
 #define	EF_DEAD				0x00000001		// don't draw a foe marker over players with EF_DEAD

@@ -108,6 +108,7 @@ vmCvar_t	g_debugUp;
 vmCvar_t	g_smoothClients;
 vmCvar_t	g_pmove_fixed;
 vmCvar_t	g_pmove_msec;
+vmCvar_t	g_pmove_float; //japro pmove_float
 vmCvar_t	g_rankings;
 vmCvar_t	g_listEntity;
 vmCvar_t	g_redteam;
@@ -145,6 +146,10 @@ vmCvar_t	g_submodelWorkaround;
 vmCvar_t	g_botTeamAutoBalance;
 
 vmCvar_t	g_MVSDK;
+
+vmCvar_t	g_movement; //japro/ratmod movement styles
+vmCvar_t	g_autoJump; //japro auto jump
+vmCvar_t	g_stepSlideFix; //japro/jka step slide fix
 
 int gDuelist1 = -1;
 int gDuelist2 = -1;
@@ -274,8 +279,9 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_enableDust, "g_enableDust", "0", 0, 0, qtrue, qfalse },
 	{ &g_enableBreath, "g_enableBreath", "0", 0, 0, qtrue, qfalse },
 	{ &g_smoothClients, "g_smoothClients", "1", 0, 0, qfalse},
-	{ &g_pmove_fixed, "pmove_fixed", "0", CVAR_SYSTEMINFO, 0, qfalse},
-	{ &g_pmove_msec, "pmove_msec", "8", CVAR_SYSTEMINFO, 0, qfalse},
+	{ &g_pmove_fixed, "pmove_fixed", "0", CVAR_SYSTEMINFO, 0, qtrue },
+	{ &g_pmove_msec, "pmove_msec", "8", CVAR_SYSTEMINFO, 0, qtrue },
+	{ &g_pmove_float, "pmove_float", "0", CVAR_SYSTEMINFO, 0, qtrue }, //japro pmove_float
 
 	{ &g_rankings, "g_rankings", "0", 0, 0, qfalse},
 
@@ -323,6 +329,9 @@ static cvarTable_t		gameCvarTable[] = {
 	{ &g_botTeamAutoBalance, "g_botTeamAutoBalance", "1", CVAR_ARCHIVE, 0, qtrue },
 
 	{ &g_MVSDK, "g_MVSDK", MVSDK_VERSION, CVAR_ROM | CVAR_SERVERINFO, 0, qfalse },
+	{ &g_movement, "g_movement", "0", CVAR_ARCHIVE | CVAR_SERVERINFO, 0, qtrue }, //japro movement style
+	{ &g_autoJump, "g_autoJump", "0", CVAR_ARCHIVE | CVAR_SERVERINFO, 0, qtrue }, //japro auto jump
+	{ &g_stepSlideFix, "g_stepSlideFix", "0", CVAR_ARCHIVE | CVAR_SERVERINFO, 0, qtrue}, //japro/jka stepslidefix
 };
 
 // bk001129 - made static to avoid aliasing

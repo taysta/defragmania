@@ -1058,6 +1058,7 @@ extern	vmCvar_t	g_blueteam;
 extern	vmCvar_t	g_smoothClients;
 extern	vmCvar_t	g_pmove_fixed;
 extern	vmCvar_t	g_pmove_msec;
+extern	vmCvar_t	g_pmove_float; //japro pmove_float
 extern	vmCvar_t	g_rankings;
 extern	vmCvar_t	g_enableDust;
 extern	vmCvar_t	g_enableBreath;
@@ -1086,6 +1087,9 @@ extern	vmCvar_t	g_mv_forcePowerDisableMode;
 extern	vmCvar_t	g_submodelWorkaround;
 extern	vmCvar_t	g_botTeamAutoBalance;
 
+extern	vmCvar_t	g_movement; //ratmod/dfmania movement style
+extern	vmCvar_t	g_autoJump; //japro autojump
+extern	vmCvar_t	g_stepSlideFix; //japro/jka stepslidefix
 void	trap_Printf( const char *fmt );
 Q_NORETURN void	trap_Error( const char *fmt );
 int		trap_Milliseconds( void );

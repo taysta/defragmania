@@ -1110,6 +1110,23 @@ void ClientThink_real( gentity_t *ent ) {
 	client->ps.speed = g_speed.value;
 	client->ps.basespeed = g_speed.value;
 
+	//japro movement styles base speeds
+	if (g_movement.integer == MOVEMENT_VQ3 || g_movement.integer == MOVEMENT_CPMA || g_movement.integer == MOVEMENT_WSW || g_movement.integer == MOVEMENT_QW || g_movement.integer == MOVEMENT_SLICK || g_movement.integer == MOVEMENT_SLIDE) {
+		client->ps.speed *= 1.28f;//bring it up to 320 on g_speed 250 for vq3/wsw physics mode
+		client->ps.basespeed *= 1.28f;//bring it up to 320 on g_speed 250 for vq3/wsw physics mode
+	}
+	else if (g_movement.integer == MOVEMENT_VQ3 == MOVEMENT_SPEED) {
+		client->ps.speed *= 1.7f;
+		client->ps.basespeed *= 1.7f;
+		if (client->ps.fd.forcePower > 50)
+			client->ps.fd.forcePower = 50;
+	} //japro base speed end
+
+	//japro match 125fps jump height if pmove_float start
+	if (g_pmove_float.integer != 0) {
+		client->ps.gravity = 750;
+	} //japro match 125fps jump height if pmove_float end
+
 	if (ent->client->ps.duelInProgress)
 	{
 		gentity_t *duelAgainst = &g_entities[ent->client->ps.duelIndex];
@@ -1315,7 +1332,10 @@ void ClientThink_real( gentity_t *ent ) {
 
 	pm.pmove_fixed = g_pmove_fixed.integer | client->pers.pmoveFixed;
 	pm.pmove_msec = g_pmove_msec.integer;
-
+	pm.pmove_float = g_pmove_float.integer; //japro pmove float cvar
+	pm.pmove_movement = g_movement.integer; //ratmod/dfmania movement cvar
+	pm.pmove_autoJump = g_autoJump.integer; //japro autojump cvar
+	pm.pmove_stepSlideFix = g_stepSlideFix.integer; //japro/jka stepSlideFix cvar
 	pm.animations = bgGlobalAnimations;//NULL;
 
 	pm.gametype = g_gametype.integer;

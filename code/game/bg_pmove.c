@@ -19,20 +19,49 @@ pml_t		pml;
 qboolean gPMDoSlowFall = qfalse;
 
 // movement parameters
-float	pm_stopspeed = 100.0f;
-float	pm_duckScale = 0.50f;
-float	pm_swimScale = 0.50f;
-float	pm_wadeScale = 0.70f;
+const float	pm_stopspeed = 100.0f;
+const float	pm_duckScale = 0.50f;
+const float	pm_swimScale = 0.50f;
+const float	pm_wadeScale = 0.70f;
 
-float	pm_accelerate = 10.0f;
-float	pm_airaccelerate = 1.0f;
-float	pm_wateraccelerate = 4.0f;
-float	pm_flyaccelerate = 8.0f;
+const float	pm_accelerate = 10.0f;
+const float	pm_airaccelerate = 1.0f;
+const float	pm_duckaccelerate = 10.0f; //ratmod crouch slide
+const float	pm_wateraccelerate = 4.0f;
+const float	pm_flyaccelerate = 8.0f;
 
-float	pm_friction = 6.0f;
-float	pm_waterfriction = 1.0f;
-float	pm_flightfriction = 3.0f;
-float	pm_spectatorfriction = 5.0f;
+const float	pm_friction = 6.0f;
+const float	pm_waterfriction = 1.0f;
+const float	pm_flightfriction = 3.0f;
+const float	pm_spectatorfriction = 5.0f;
+
+//japro/dfmania movement parameters
+const float pm_vq3_duckScale = 0.25f;
+
+const float	pm_cpm_accelerate = 15.0f;
+const float	pm_cpm_airaccelerate = 1.0f;
+const float	pm_cpm_airstopaccelerate = 2.5f;
+const float	pm_cpm_airstrafeaccelerate = 70.0f;
+const float	pm_cpm_airstrafewishspeed = 30.0f;
+
+const float	pm_cpm_aircontrol = 150.0f;
+const float pm_cpm_friction = 8.0f;
+
+const float pm_wsw_accelerate = 12.0f;
+const float pm_wsw_duckScale = 0.3125f;
+
+const float pm_slick_accelerate = 30.0f;
+const float	pm_slick_airstrafeaccelerate = 100.0f;
+
+const float	pm_slide_crouchwishspeed = 226.0f;
+const float	pm_slide_crouchturn = 15.0f;
+const float pm_slide_crouchgracetime = 300.0f;
+const float pm_slide_crouchgogracetime = 400.0f;
+const float pm_slide_crouchgospeedcap = 600.0f;
+const float	pm_slide_crouchgoaccel = 2.0f;
+
+const float pm_qw_airaccelerate = 0.7f;
+//japro/dfmania movement parameters
 
 int		c_pmove = 0;
 
@@ -238,6 +267,138 @@ float forceJumpStrength[NUM_FORCE_POWER_LEVELS] =
 	840
 };
 
+//ratmod/dfmania movement style get functions start
+static int PM_GetMovePhysics(pmove_t* pm) {
+	return pm->pmove_movement;
+}
+
+static qboolean PM_HasAirControl(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+	case MOVEMENT_SLICK:
+		return qtrue;
+		break;
+	default:
+		return qfalse;
+	}
+}
+
+static qboolean PM_HasForceJumps(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_JK2:
+	case MOVEMENT_PJK:
+	case MOVEMENT_QW:
+	case MOVEMENT_SPEED:
+		return qtrue;
+		break;
+	default:
+		return qfalse;
+	}
+}
+
+static qboolean PM_HasAutoJump(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_JK2:
+	case MOVEMENT_SPEED:
+		return qfalse;
+		break;
+	default:
+		return qtrue;
+	}
+}
+
+static float PM_GetAccelerate(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+		return pm_cpm_accelerate;
+		break;
+	case MOVEMENT_WSW:
+		return pm_wsw_accelerate;
+		break;
+	case MOVEMENT_SLICK:
+		return pm_slick_accelerate;
+	default:
+		return pm_accelerate;
+	}
+}
+
+static float PM_GetAirAccelerate(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+	case MOVEMENT_SLICK:
+		return pm_cpm_airaccelerate;
+	default:
+		return pm_airaccelerate;
+	}
+}
+
+static float PM_GetAirStrafeAccelerate(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+		return pm_cpm_airstrafeaccelerate;
+		break;
+	case MOVEMENT_SLICK:
+		return pm_slick_airstrafeaccelerate;
+	default:
+		return pm_airaccelerate;
+	}
+}
+
+static float PM_GetAirStopAccelerate(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+	case MOVEMENT_SLICK:
+		return pm_cpm_airstopaccelerate;
+	default:
+		return 0.0f;
+	}
+}
+
+static float PM_GetAirStrafeWishspeed(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_PJK:
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+	case MOVEMENT_SLICK:
+	default:
+		return pm_cpm_airstrafewishspeed;
+	}
+}
+
+static float PM_GetFriction(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_CPMA:
+	case MOVEMENT_WSW:
+	case MOVEMENT_SLICK:
+		return pm_cpm_friction;
+		break;
+	default:
+		return pm_friction;
+	}
+}
+
+static float PM_GetDuckScale(pmove_t* pm) {
+	switch (PM_GetMovePhysics(pm)) {
+	case MOVEMENT_VQ3:
+		return pm_vq3_duckScale;
+		break;
+	case MOVEMENT_WSW:
+		return pm_wsw_duckScale;
+		break;
+	default:
+		return pm_duckScale;
+	}
+}//ratmod/dfmania movement style get functions end
+
 int PM_GetSaberStance(void)
 {
 	if ( pm->ps->dualBlade )
@@ -349,7 +510,10 @@ static void PM_Friction( void ) {
 	float	*vel;
 	float	speed, newspeed, control;
 	float	drop;
-	
+	//japro movement styles friction start
+	const int moveStyle = PM_GetMovePhysics(pm);
+	float realFriction = PM_GetFriction(pm);
+	//japro movement styles friction end
 	vel = pm->ps->velocity;
 	
 	VectorCopy( vel, vec );
@@ -369,11 +533,11 @@ static void PM_Friction( void ) {
 
 	// apply ground friction
 	if ( pm->waterlevel <= 1 ) {
-		if ( pml.walking && !(pml.groundTrace.surfaceFlags & SURF_SLICK) ) {
+		if ( pml.walking && !(pml.groundTrace.surfaceFlags & SURF_SLICK) && (moveStyle != MOVEMENT_SLICK || (pm->cmd.buttons & BUTTON_WALKING)) && !(pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING)) { //japro slow down when holding walk on slick, no friction when ratmod sliding
 			// if getting knocked back, no friction
 			if ( ! (pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) {
 				control = speed < pm_stopspeed ? pm_stopspeed : speed;
-				drop += control*pm_friction*pml.frametime;
+				drop += control*realFriction*pml.frametime; //japro movement styles friction
 			}
 		}
 	}
@@ -558,6 +722,10 @@ qboolean PM_ForceJumpingUp(void)
 	{
 		return qfalse;
 	}
+	//japro restrict force jumps start
+	if (PM_HasForceJumps(pm) == qfalse) {
+		return qfalse;
+	} //japro restrict force jumps end
 
 	if (!BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION))
 	{
@@ -732,6 +900,7 @@ PM_CheckJump
 */
 static qboolean PM_CheckJump( void ) 
 {
+	const int moveStyle = PM_GetMovePhysics(pm); //japro/dfmania movement styles
 	if (pm->ps->usingATST)
 	{
 		return qfalse;
@@ -811,6 +980,11 @@ static qboolean PM_CheckJump( void )
 			if ( PM_ForceJumpingUp() )
 			{//holding jump in air
 				float curHeight = pm->ps->origin[2] - pm->ps->fd.forceJumpZStart;
+				//japro pjk rampjumps start
+				float realForceJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];
+				if ((moveStyle == MOVEMENT_PJK) || (moveStyle == MOVEMENT_QW)) { //If we have forcejump rampjump, we should be able to jump higher
+					realForceJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] * (pm->ps->stats[STAT_LASTJUMPSPEED] / (float)JUMP_VELOCITY);
+				} //japro pjk rampjumps end
 				//check for max force jump level and cap off & cut z vel
 				if ( ( curHeight<=forceJumpHeight[0] ||//still below minimum jump height
 						(pm->ps->fd.forcePower&&pm->cmd.upmove>=10) ) &&////still have force power available and still trying to jump up 
@@ -938,10 +1112,20 @@ static qboolean PM_CheckJump( void )
 						}
 					}
 
-					//need to scale this down, start with height velocity (based on max force jump height) and scale down to regular jump vel
-					pm->ps->velocity[2] = (forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]]-curHeight)/forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]]*forceJumpStrength[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];//JUMP_VELOCITY;
-					pm->ps->velocity[2] /= 10;
-					pm->ps->velocity[2] += JUMP_VELOCITY;
+					//japro forcejump rampjump start
+					if ((moveStyle == MOVEMENT_PJK) || (moveStyle == MOVEMENT_QW)) {
+						float realForceJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] * (pm->ps->stats[STAT_LASTJUMPSPEED] / (float)JUMP_VELOCITY);
+
+						pm->ps->velocity[2] = (realForceJumpHeight - curHeight) / realForceJumpHeight * forceJumpStrength[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];
+						pm->ps->velocity[2] /= 10;
+						pm->ps->velocity[2] += pm->ps->stats[STAT_LASTJUMPSPEED];
+					}//japro forcejump rampjump end
+					else {
+						//need to scale this down, start with height velocity (based on max force jump height) and scale down to regular jump vel
+						pm->ps->velocity[2] = (forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]]-curHeight)/forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]]*forceJumpStrength[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];//JUMP_VELOCITY;
+						pm->ps->velocity[2] /= 10;
+						pm->ps->velocity[2] += JUMP_VELOCITY;
+					}
 					pm->ps->pm_flags |= PMF_JUMP_HELD;
 				}
 				else if ( curHeight > forceJumpHeight[0] && curHeight < forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] - forceJumpHeight[0] )
@@ -961,8 +1145,12 @@ static qboolean PM_CheckJump( void )
 						pm->ps->velocity[2] = JUMP_VELOCITY;
 					}
 				}
-				pm->cmd.upmove = 0;
-				return qfalse;
+				//japro hold to jump start
+				if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump(pm) == qfalse)) 
+				{
+					pm->cmd.upmove = 0; // change this to allow hold to jump?
+					return qfalse;
+				} //japro hold to jump end
 			}
 			else if ( jk2gameplay == VERSION_1_02 && pm->ps->groundEntityNum == ENTITYNUM_NONE )
 			{
@@ -983,12 +1171,20 @@ static qboolean PM_CheckJump( void )
 		return qfalse;
 	}
 
+	//japro pjk jump floodprotect start
+	if ( moveStyle == MOVEMENT_PJK && pm->ps->stats[STAT_JUMPTIME] > 375 ) { //400 = Just jumped.  Should probably floodprotect all styles but w.e.
+		return qfalse;
+	} //japro pjk jump floodprotect end
+
 	// must wait for jump to be released
 	if ( pm->ps->pm_flags & PMF_JUMP_HELD ) 
 	{
 		// clear upmove so cmdscale doesn't lower running speed
-		pm->cmd.upmove = 0;
-		return qfalse;
+		if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump(pm) == qfalse)) //japro hold to jump
+		{
+			pm->cmd.upmove = 0;
+			return qfalse;
+		}
 	}
 
 	if ( pm->ps->gravity <= 0 )
@@ -1012,6 +1208,7 @@ static qboolean PM_CheckJump( void )
 		!(pm->ps->pm_flags&PMF_JUMP_HELD) &&
 		pm->ps->weapon == WP_SABER &&
 		!BG_HasYsalamiri(pm->gametype, pm->ps) &&
+		(PM_HasForceJumps(pm) == qtrue)	&& /*japro forcejump restricted styles*/
 		BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION) )
 	{
 		if ( pm->ps->groundEntityNum != ENTITYNUM_NONE )
@@ -1353,9 +1550,50 @@ static qboolean PM_CheckJump( void )
 	}
 	if ( pm->cmd.upmove > 0 )
 	{//no special jumps
-		pm->ps->velocity[2] = JUMP_VELOCITY;
-		PM_SetForceJumpZStart(pm->ps->origin[2]);//so we don't take damage if we land at same height
-		pm->ps->pm_flags |= PMF_JUMP_HELD;
+		//japro rampjump/doublejump start
+		if (PM_HasAutoJump(pm) == qtrue)
+		{
+			vec3_t hVel;
+			float added, xyspeed, realjumpvelocity = JUMP_VELOCITY;
+
+			if (moveStyle == MOVEMENT_WSW)
+				realjumpvelocity = 280.0f;
+			else if (moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_CPMA || moveStyle == MOVEMENT_SLICK || moveStyle == MOVEMENT_SLIDE)
+				realjumpvelocity = 270.0f;
+
+			hVel[0] = pm->ps->velocity[0];
+			hVel[1] = pm->ps->velocity[1];
+			hVel[2] = 0;
+			xyspeed = sqrt(hVel[0] * hVel[0] + hVel[1] * hVel[1]);
+			added = -DotProduct(hVel, pml.groundTrace.plane.normal);
+			pm->ps->velocity[2] = realjumpvelocity;
+
+			if (added > (xyspeed * 0.5))
+				added = (xyspeed * 0.5);//Sad sanity check hack
+
+			//Dont apply if added is quite small (prevent circlejump rampjump?)
+
+			if (added > 0) {
+				if (moveStyle == MOVEMENT_PJK || moveStyle == MOVEMENT_QW)
+					pm->ps->velocity[2] += (added * 0.75f); //Forcejump rampjump initial upspeed
+				else if ((moveStyle == MOVEMENT_WSW))
+					pm->ps->velocity[2] += (added * 0.75f);//Make rampjump weaker for wsw since no speedloss
+				else
+					pm->ps->velocity[2] += (added * 1.25f); //Make rampjump stronger for cpm/q3/slick
+			}
+			else if (pm->ps->stats[STAT_JUMPTIME] > 0) { //DOUBLEJUMP DOUBLE JUMP
+				pm->ps->velocity[2] += 100.0f;
+				pm->ps->pm_flags &= ~PMF_JUMP_HELD;
+			}
+			pm->ps->stats[STAT_JUMPTIME] = 401; //The fuck? Great to know
+			pm->ps->stats[STAT_LASTJUMPSPEED] = pm->ps->velocity[2];
+		}//japro rampjump/doublejump end
+		else
+		{
+			pm->ps->velocity[2] = JUMP_VELOCITY;
+			PM_SetForceJumpZStart(pm->ps->origin[2]);//so we don't take damage if we land at same height
+			pm->ps->pm_flags |= PMF_JUMP_HELD;
+		}
 	}
 
 	//Jumping
@@ -1564,6 +1802,73 @@ static void PM_FlyMove( void ) {
 	PM_StepSlideMove( qfalse );
 }
 
+/*
+==================
+PM_AirAccelerate
+japro - by Loda
+==================
+*/
+void PM_QW_AirAccelerate(vec3_t wishdir, float wishspeed, float accel)
+{
+	int		i;
+	float	addspeed, accelspeed, currentspeed, wishspd = wishspeed;
+
+	if (pm->ps->pm_type == PM_DEAD)
+		return;
+	if (pm->ps->pm_flags & PMF_TIME_WATERJUMP)
+		return;
+
+	if (wishspd > 30)
+		wishspd = 30;
+
+	currentspeed = DotProduct(pm->ps->velocity, wishdir);
+	addspeed = wishspd - currentspeed;// See how much to add
+	if (addspeed <= 0)// If not adding any, done.
+		return;
+
+	accelspeed = accel * wishspeed * pml.frametime * 4.0f;// QUAKECLASSIC: accelspeed = accel * wishspeed * pmove->frametime * pmove->friction;
+
+	if (accelspeed > addspeed) // Cap it
+		accelspeed = addspeed;
+
+	for (i = 0; i < 3; i++)// Adjust pmove vel.
+		pm->ps->velocity[i] += accelspeed * wishdir[i];
+}
+
+/*
+==================
+CL_ClientMovement_Physics_CPM_PM_Aircontrol
+ratmod - Copied with edits from cl_input.c from Xonotic's Darkplaces engine, which is
+covered under the GPLv2+ license.
+==================
+*/
+static void PM_CPM_Aircontrol(pmove_t *pm, vec3_t wishdir, vec_t wishspeed)
+{
+	vec_t zspeed, speed, dot, k;
+
+	// this doesn't play well with analog input
+	if(pm->cmd.forwardmove == 0 || pm->cmd.rightmove != 0)
+		return;
+	k = 32;
+	k *= Com_Clamp(0, 1, wishspeed / PM_GetAirStrafeWishspeed(pm));
+
+	zspeed = pm->ps->velocity[2];
+	pm->ps->velocity[2] = 0;
+	speed = VectorNormalize(pm->ps->velocity);
+
+	dot = DotProduct(pm->ps->velocity, wishdir);
+
+	if(dot > 0) { // we can't change direction while slowing down
+		k *= dot*dot*pml.frametime;
+		k *= pm_cpm_aircontrol;
+		VectorMA(vec3_origin, speed, pm->ps->velocity, pm->ps->velocity);
+		VectorMA(pm->ps->velocity, k, wishdir, pm->ps->velocity);
+		VectorNormalize(pm->ps->velocity);
+	}
+
+	VectorScale(pm->ps->velocity, speed, pm->ps->velocity);
+	pm->ps->velocity[2] = zspeed;
+}
 
 /*
 ===================
@@ -1576,10 +1881,12 @@ static void PM_AirMove( void ) {
 	vec3_t		wishvel;
 	float		fmove, smove;
 	vec3_t		wishdir;
-	float		wishspeed;
+	float		wishspeed, wishspeed2;
 	float		scale;
 	usercmd_t	cmd;
-
+	float		accel = PM_GetAirAccelerate(pm); //ratmod cpma
+	vec3_t		curdir; //ratmod cpma
+	float		dot; //ratmod cpma
 	if (pm->ps->pm_type != PM_SPECTATOR)
 	{
 #if METROID_JUMP
@@ -1598,6 +1905,16 @@ static void PM_AirMove( void ) {
 	smove = pm->cmd.rightmove;
 
 	cmd = pm->cmd;
+
+	//ratmod crouchslide
+	if (!cmd.forwardmove && !cmd.rightmove) {
+		pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING;
+	}
+
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+		cmd.upmove = 0;
+	} //ratmod crouchslide
+
 	scale = PM_CmdScale( &cmd );
 
 	// set the movementDir so clients can rotate the legs for strafing
@@ -1626,8 +1943,40 @@ static void PM_AirMove( void ) {
 	wishspeed = VectorNormalize(wishdir);
 	wishspeed *= scale;
 
+	//ratmod cpma start
+	wishspeed2 = wishspeed;
+	// begin Xonotic Darkplaces Air Control
+	if(PM_HasAirControl(pm) == qtrue){
+		curdir[0] = pm->ps->velocity[0];
+		curdir[1] = pm->ps->velocity[1];
+		curdir[2] = 0;
+		VectorNormalize(curdir);
+		if (PM_GetAirStopAccelerate(pm)) {
+			dot = -DotProduct(curdir, wishdir);
+			accel = accel + (PM_GetAirStopAccelerate(pm) - accel) * (dot > 0 ? dot : 0);
+		}
+	}
+	// end ratmod/Xonotic Darkplaces Air Control
+
+	//japro air control cap start
+	if ((fmove == 0 && smove != 0) && (PM_HasAirControl(pm) == qtrue)) {
+		if (wishspeed > pm_cpm_airstrafewishspeed){
+			wishspeed = PM_GetAirStrafeWishspeed(pm);
+			accel = PM_GetAirStrafeAccelerate(pm);
+		}
+	} //japro air control cap end
+	
 	// not on ground, so little effect on velocity
-	PM_Accelerate (wishdir, wishspeed, pm_airaccelerate);
+	PM_Accelerate (wishdir, wishspeed, accel);
+
+	if (PM_GetMovePhysics(pm) == MOVEMENT_QW)
+		PM_QW_AirAccelerate(wishdir, wishspeed, pm_qw_airaccelerate); //japro QW
+
+	// begin ratmod/Xonotic Darkplaces Air Control
+	if(PM_HasAirControl(pm) == qtrue){
+		PM_CPM_Aircontrol(pm, wishdir, wishspeed2);
+	}
+	// end ratmod/Xonotic Darkplaces Air Control
 
 	// we may have a ground plane that is very steep, even
 	// though we don't have a groundentity
@@ -1639,6 +1988,233 @@ static void PM_AirMove( void ) {
 
 	PM_StepSlideMove ( qtrue );
 }
+
+//japro wsw dodge/dash/walljump start
+static void PM_DodgeMove(int forward, int right)
+{
+	vec3_t dodgedir;
+	const int DODGE_SPEED = pm->ps->speed * 1.25f;
+	static const int DODGE_JUMP_SPEED = 180;
+
+	VectorMA(vec3_origin, right, pml.right, dodgedir);
+	VectorMA(dodgedir, forward, pml.forward, dodgedir);
+	VectorNormalize(dodgedir);
+	VectorScale(dodgedir, DODGE_SPEED, dodgedir);
+
+	VectorCopy(dodgedir, pm->ps->velocity);
+
+	pm->ps->velocity[2] = DODGE_JUMP_SPEED;
+}
+
+static void PM_DashMove(void)
+{
+	vec3_t dashdir, view;
+	const int DASH_SPEED = pm->ps->speed * (1.9f / 1.28f); //475... ayy 
+	static const int DASH_JUMP_SPEED = 280;
+	float xyspeed;
+
+	xyspeed = sqrt(pm->ps->velocity[0] * pm->ps->velocity[0] + pm->ps->velocity[1] * pm->ps->velocity[1]);
+
+	VectorCopy(pml.forward, view);
+	view[2] = 0; //I guess this is really pitch angle
+
+	VectorMA(vec3_origin, 1, view, dashdir);
+	VectorNormalize(dashdir);
+
+	if (xyspeed <= DASH_SPEED)
+		VectorScale(dashdir, DASH_SPEED, dashdir);
+	else
+		VectorScale(dashdir, xyspeed, dashdir);
+
+	VectorCopy(dashdir, pm->ps->velocity);
+
+	pm->ps->velocity[2] = DASH_JUMP_SPEED;
+	pm->ps->stats[STAT_JUMPTIME] = 401;
+}
+
+/*
+* PM_CheckDash -- by Kurim & Loda
+*/
+static void PM_CheckDash(void)
+{
+	static const int DASH_DELAY = 800;
+
+	if (pm->ps->groundEntityNum == ENTITYNUM_NONE)
+		return;
+
+	if (pm->ps->stats[STAT_HEALTH] <= 0) {
+		return;
+	}
+
+	if (pm->ps->weaponTime > 0)
+		return;
+
+	if (PM_GetMovePhysics(pm) != MOVEMENT_WSW)
+		return;
+
+	if (pm->ps->stats[STAT_DASHTIME] > 0)
+		return;
+
+	pm->ps->stats[STAT_DASHTIME] = DASH_DELAY;
+
+	//PM_AddEvent( EV_FALL );
+
+	if (pm->cmd.buttons & BUTTON_WALKING) { //Dodge move
+		if (pm->cmd.forwardmove > 0) {//W
+			if (pm->cmd.rightmove > 0) //D
+				PM_DodgeMove(1, 1);
+			else if (pm->cmd.rightmove < 0) //A
+				PM_DodgeMove(1, -1);
+			else
+				PM_DodgeMove(1, 0);
+		}
+		else if (pm->cmd.forwardmove < 0) {//S
+			if (pm->cmd.rightmove > 0) //D
+				PM_DodgeMove(-1, 1);
+			else if (pm->cmd.rightmove < 0) //A
+				PM_DodgeMove(-1, -1);
+			else
+				PM_DodgeMove(-1, 0);
+		}
+		else {
+			if (pm->cmd.rightmove > 0) //D
+				PM_DodgeMove(0, 1);
+			else if (pm->cmd.rightmove < 0) //A
+				PM_DodgeMove(0, -1);
+		}
+	}
+	else { //Dash move
+		PM_DashMove(); //Dont care what wasd keys they press, due to pussers.
+	}
+}
+
+// Walljump wall availability check
+// nbTestDir is the number of directions to test around the player
+// maxZnormal is the max Z value of the normal of a poly to consider it a wall
+// normal becomes a pointer to the normal of the most appropriate wall
+static void PlayerTouchWall(int nbTestDir, float maxZnormal, vec3_t* normal)
+{
+	vec3_t min, max, dir;
+	int i, j;
+	trace_t trace;
+	float dist = 1.0;
+
+#define M_TWOPI	6.28318530717958647692
+
+	for (i = 0; i < nbTestDir; i++) {
+		dir[0] = pm->ps->origin[0] + (pm->maxs[0] * cos((M_TWOPI / nbTestDir) * i) + pm->ps->velocity[0] * pml.frametime);
+		dir[1] = pm->ps->origin[1] + (pm->maxs[1] * sin((M_TWOPI / nbTestDir) * i) + pm->ps->velocity[1] * pml.frametime);
+		dir[2] = pm->ps->origin[2];
+
+		for (j = 0; j < 2; j++) {
+			min[j] = pm->mins[j];
+			max[j] = pm->maxs[j];
+		}
+		min[2] = max[2] = 0;
+		VectorScale(dir, 1.002f, dir);
+
+		pm->trace(&trace, pm->ps->origin, min, max, dir, pm->ps->clientNum, CONTENTS_SOLID);
+
+		if (trace.allsolid)
+			return;
+
+		if (trace.fraction == 1)
+			continue; // no wall in this direction
+
+		if (trace.surfaceFlags & (SURF_SKY))
+			continue;
+
+		if (trace.entityNum > 0 && trace.entityNum < MAX_CLIENTS)
+			continue;
+
+		if (trace.fraction > 0) {
+			if (dist > trace.fraction && abs(trace.plane.normal[2]) < maxZnormal) {
+				dist = trace.fraction;
+				VectorCopy(trace.plane.normal, *normal);
+			}
+		}
+	}
+}
+
+/*
+* PM_CheckWallJump -- By Kurim & Loda
+*/
+static void PM_CheckWallJump(void)
+{
+	vec3_t normal;
+	float hspeed;
+	static const int WJ_DELAY = 1600;
+	static const int DODGE_SPEED = 380;
+	static const int MIN_WJSPEED = 200;
+	static const int WJ_UPSPEED = 370;
+	static const float WJ_BOUNCEFACTOR = 0.5;
+	static const int DASH_DELAY = 800;
+	trace_t trace;
+	vec3_t point;
+	vec3_t xyspeed;
+
+	if (pm->ps->groundEntityNum != ENTITYNUM_NONE)
+		return;
+
+	if (pm->ps->weaponTime > 0)
+		return;
+
+	if (PM_GetMovePhysics(pm) != MOVEMENT_WSW)
+		return;
+
+	if (pm->ps->stats[STAT_WJTIME] > 0)
+		return;
+
+	if (pm->ps->stats[STAT_DASHTIME] > (DASH_DELAY - 100))
+		return;
+
+	point[0] = pm->ps->origin[0];
+	point[1] = pm->ps->origin[1];
+	point[2] = pm->ps->origin[2] - STEPSIZE;
+
+	// don't walljump if our height is smaller than a step 
+	// unless the player is moving faster than dash speed and upwards
+	xyspeed[0] = pm->ps->velocity[0];
+	xyspeed[1] = pm->ps->velocity[1];
+	xyspeed[2] = 0;
+	hspeed = sqrt(pm->ps->velocity[0] * pm->ps->velocity[0] + pm->ps->velocity[1] * pm->ps->velocity[1]);
+
+	hspeed = VectorLength(xyspeed);
+
+	pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point, pm->ps->clientNum, CONTENTS_SOLID);
+
+	if ((hspeed > DODGE_SPEED && pm->ps->velocity[2] > 8) || (trace.fraction == 1) || !trace.startsolid)
+	{
+		float oldupvelocity = pm->ps->velocity[2];
+
+		VectorClear(normal);
+		PlayerTouchWall(12, 0.3f, &normal);
+		if (!VectorLength(normal))
+			return;
+
+		pm->ps->velocity[2] = 0;
+
+		hspeed = VectorNormalize(xyspeed);
+
+		PM_ClipVelocity(pm->ps->velocity, normal, pm->ps->velocity, 1.0005f);
+		VectorMA(pm->ps->velocity, WJ_BOUNCEFACTOR, normal, pm->ps->velocity);
+
+		if (hspeed < MIN_WJSPEED)
+			hspeed = MIN_WJSPEED;
+
+		VectorNormalize(pm->ps->velocity);
+
+		VectorScale(pm->ps->velocity, hspeed, pm->ps->velocity);
+		pm->ps->velocity[2] = (oldupvelocity > WJ_UPSPEED) ? oldupvelocity : WJ_UPSPEED; // jal: if we had a faster upwards speed, keep it
+
+		pm->ps->stats[STAT_WJTIME] = WJ_DELAY;
+		PM_AddEvent( EV_FALL );
+#ifdef JK2_GAME
+		//G_PlayEffect(EFFECT_NONE, trace.endpos, trace.plane.normal);//Should be spot on wall, and wallnormal, a better, predicted way to do this?
+#endif
+	}
+}
+//japro wsw dodge/dash/walljump end
 
 /*
 ===================
@@ -1658,6 +2234,11 @@ static void PM_WalkMove( void ) {
 	float		vel;
 	float		totalVel;
 
+	//japro movement styles duckscale/accelerate start
+	const int moveStyle = PM_GetMovePhysics(pm);
+	float realDuckScale = PM_GetDuckScale(pm);
+	float realAccelerate = PM_GetAccelerate(pm);
+	//japro movement styles duckscale/accelerate end
 	if (pm->ps->velocity[0] < 0)
 	{
 		totalVel = -pm->ps->velocity[0];
@@ -1734,16 +2315,19 @@ static void PM_WalkMove( void ) {
 
 	// clamp the speed lower if ducking
 	if ( pm->ps->pm_flags & PMF_DUCKED ) {
-		if ( wishspeed > pm->ps->speed * pm_duckScale ) {
-			wishspeed = pm->ps->speed * pm_duckScale;
+		if ( wishspeed > pm->ps->speed * realDuckScale) { //japro movement styles duck scale
+			wishspeed = pm->ps->speed * realDuckScale;
 		}
 	}
 	else if ( (pm->ps->pm_flags & PMF_ROLLING) && !BG_InRoll(pm->ps, pm->ps->legsAnim) &&
 		!PM_InRollComplete(pm->ps, pm->ps->legsAnim))
 	{
-		if ( wishspeed > pm->ps->speed * pm_duckScale ) {
-			wishspeed = pm->ps->speed * pm_duckScale;
+		if ( wishspeed > pm->ps->speed * realDuckScale) { //japro movement styles duck scale
+			wishspeed = pm->ps->speed * realDuckScale;
 		}
+	}
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) { //ratmod crouchsliding
+		wishspeed = pm_slide_crouchwishspeed;
 	}
 
 	// clamp the speed lower if wading or walking on the bottom
@@ -1759,20 +2343,53 @@ static void PM_WalkMove( void ) {
 
 	// when a player gets hit, they temporarily lose
 	// full control, which allows them to be moved a bit
-	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK ) {
+	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) && (moveStyle != MOVEMENT_SLICK || pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) { //japro slick
 		accelerate = pm_airaccelerate;
 	} else {
-		accelerate = pm_accelerate;
+		accelerate = realAccelerate; //japro movement styles accelerate
+	}
+	// Crouch slide acceleration.
+	vel = VectorLength(pm->ps->velocity);
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+		// Turn.
+		accelerate = pm_slide_crouchturn;
 	}
 
 	PM_Accelerate (wishdir, wishspeed, accelerate);
 
+	//crouch slide
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+		float speedCap;
+		if (VectorLength(pm->ps->velocity) < vel) {
+			pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING;
+		}
+		// Accelerate.
+		accelerate = ((float)pm->ps->stats[STAT_SLIDETIMEOUT] / pm_slide_crouchgogracetime) * pm_slide_crouchgoaccel;
+		if (!(VectorLength(pm->ps->velocity) > vel && vel >= wishspeed) && (accelerate > 0)) {
+			accelerate = 0;
+		}
+		VectorNormalize(pm->ps->velocity);
+		VectorScale(pm->ps->velocity, vel + accelerate * wishspeed * pml.frametime, pm->ps->velocity);	
+
+		// Cap speed.
+		speedCap = pm_slide_crouchgospeedcap;
+		if (speedCap && VectorLength(pm->ps->velocity) > vel && vel >= speedCap) {
+			VectorNormalize(pm->ps->velocity);
+			VectorScale(pm->ps->velocity, vel, pm->ps->velocity);
+		}
+	}
+
 	//Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
 	//Com_Printf("velocity1 = %1.1f\n", VectorLength(pm->ps->velocity));
 
-	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK )
+	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK || moveStyle == MOVEMENT_SLICK || pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) //japro slick start
 	{
-		pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
+		if (pm->pmove_float != 0) {
+			pm->ps->velocity[2] -= 800 * pml.frametime; //japro - Use 800 as gravity instead of 750 if pmove_float - fixes sliding down slick slopes like lappen
+		}
+		else {
+			pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
+		}
 	}
 
 	vel = VectorLength(pm->ps->velocity);
@@ -1806,6 +2423,8 @@ static void PM_DeadMove( void ) {
 	float	forward;
 
 	if ( !pml.walking ) {
+		pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING; //ratmod sliding, reset timer
+		pm->ps->stats[STAT_SLIDETIMEOUT] = 0;
 		return;
 	}
 
@@ -1924,7 +2543,8 @@ static int PM_TryRoll( void )
 	}
 
 	if (pm->ps->weapon != WP_SABER || BG_HasYsalamiri(pm->gametype, pm->ps) ||
-		!BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION))
+		(PM_HasForceJumps(pm) == qfalse) || /*japro forcejump restricted styles */
+        !BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION))
 	{ //Not using saber, or can't use jump
 		return 0;
 	}
@@ -2009,6 +2629,14 @@ static void PM_CrashLand( void ) {
 	// ducking while falling doubles damage
 	if ( pm->ps->pm_flags & PMF_DUCKED ) {
 		delta *= 2;
+		//ratmod crouchslide start
+		if (pm->pmove_movement == MOVEMENT_SLIDE) {
+			pm->ps->stats[STAT_EXTFLAGS] |= EXTFL_SLIDING;
+			pm->ps->stats[STAT_SLIDETIMEOUT] = pm_slide_crouchgogracetime;
+			}
+		// play slide sound immediately
+		pm->ps->bobCycle = 63;
+		//ratmod crouchslide end
 	}
 
 	// decide which landing animation to use
@@ -2174,6 +2802,16 @@ static void PM_CrashLand( void ) {
 	// make sure velocity resets so we don't bounce back up again in case we miss the clear elsewhere
 	pm->ps->velocity[2] = 0;
 
+	//japro overbounce start  - only styles without force jumps can OB
+	if ((PM_HasForceJumps(pm) != qtrue) && ((int)pm->ps->fd.forceJumpZStart > pm->ps->origin[2] + 1)) {
+		if (1 > (sqrt(pm->ps->velocity[0] * pm->ps->velocity[0] + pm->ps->velocity[1] * pm->ps->velocity[1])))//No xyvel
+			pm->ps->velocity[2] = -vel;
+	} //japro overbounce finish - only styles without force jumps can OB
+
+	//ratmod slide sounds
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+		return;
+	}
 	// start footstep cycle over
 	pm->ps->bobCycle = 0;
 }
@@ -2387,6 +3025,44 @@ static void PM_GroundTrace( void ) {
 		if ( pm->debugLevel ) {
 			Com_Printf("%i:Land\n", c_pmove);
 		}
+
+		//japro nospeed ramp fix start
+
+		//When we land, if our Z velocity is unusually low, its probably going to result in a nospeeded ramp
+		//If we compare our previous z velocity to our current z velocity, if they are close very, it probably messed up somehow..
+		//Since they should be very different since we just hit the ground.
+		//So if they are very close, its probably a missed ramp somehow.. so redo the clipvelocity thing here :/
+		//Ideally this could be debugged further back and fixed at the source of the problem..
+
+		//Have a pmove var "clipped" , set it to qfalse at start of every frame.
+		//When clipvelocity is called near "wsw rampjump", set clipped to qtrue.
+		//Right here, if clipped is qfalse, do a clipvelocity ?
+		//Seems like a better solution
+
+		if (trace.plane.normal[0] != 0.0f || trace.plane.normal[1] != 0.0f || trace.plane.normal[2] != 1.0f) { //Its actually a ramp
+			if (!pml.clipped) {
+				int moveStyle = PM_GetMovePhysics(pm);
+				if (moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_SLICK) { //Only change our xy speed if we hit a downramp in wsw
+					vec3_t oldVel, clipped_velocity, newVel;
+					float oldSpeed, newSpeed;
+
+					VectorCopy(pm->ps->velocity, oldVel);
+					oldSpeed = oldVel[0] * oldVel[0] + oldVel[1] * oldVel[1];
+
+					PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, clipped_velocity, OVERCLIP); //WSW RAMPJUMP 1
+
+					VectorCopy(clipped_velocity, newVel);
+					newVel[2] = 0;
+					newSpeed = newVel[0] * newVel[0] + newVel[1] * newVel[1];
+
+					if (newSpeed > oldSpeed)
+						VectorCopy(clipped_velocity, pm->ps->velocity);
+				}
+				else {
+					PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP); //Not sure why wsw is acting weird here.. so i guess no speed ramps will still be a thing in wsw style :/
+				}
+			}
+		} //japro nospeed ramp fix end
 		
 		PM_CrashLand();
 
@@ -2509,8 +3185,12 @@ static void PM_CheckDuck (void)
 			// try to stand up
 			pm->maxs[2] = DEFAULT_MAXS_2;
 			pm->trace (&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask );
-			if (!trace.allsolid)
+			if (!trace.allsolid) {
 				pm->ps->pm_flags &= ~PMF_DUCKED;
+				if (pm->pmove_movement == MOVEMENT_SLIDE) { //ratmod crouchslide
+					pm->ps->stats[STAT_SLIDETIMEOUT] = pm_slide_crouchgracetime;
+				}
+			}
 		}
 	}
 
@@ -2686,47 +3366,55 @@ static void PM_Footsteps( void ) {
 
 	if ( pm->ps->pm_flags & PMF_DUCKED )
 	{
-		int rolled = 0;
-
-		bobmove = 0.5;	// ducked characters bob much faster
-
-		if ( PM_RunningAnim( pm->ps->legsAnim ) && !BG_InRoll(pm->ps, pm->ps->legsAnim) )
-		{//roll!
-			rolled = PM_TryRoll();
-		}
-		if ( !rolled )
-		{ //if the roll failed or didn't attempt, do standard crouching anim stuff.
-			if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) {
-				if ((pm->ps->legsAnim&~ANIM_TOGGLEBIT) != BOTH_CROUCH1WALKBACK && jk2gameplay != VERSION_1_02)
-				{
-					PM_SetAnim(SETANIM_LEGS, BOTH_CROUCH1WALKBACK, setAnimFlags, 100);
-				}
-				else
-				{
-					PM_ContinueLegsAnim( BOTH_CROUCH1WALKBACK );
-				}
-			}
-			else {
-				if ((pm->ps->legsAnim&~ANIM_TOGGLEBIT) != BOTH_CROUCH1WALK && jk2gameplay != VERSION_1_02)
-				{
-					PM_SetAnim(SETANIM_LEGS, BOTH_CROUCH1WALK, setAnimFlags, 100);
-				}
-				else
-				{
-					PM_ContinueLegsAnim( BOTH_CROUCH1WALK );
-				}
-			}
+		//ratmod crouchslide
+		if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+			bobmove = 0.4f;
+			PM_ContinueLegsAnim(BOTH_CROUCH1WALK);
 		}
 		else
-		{ //otherwise send us into the roll
-			pm->ps->legsTimer = 0;
-			pm->ps->legsAnim = 0;
+		{
+			int rolled = 0;
+
+			bobmove = 0.5;	// ducked characters bob much faster
+
+			if ( PM_RunningAnim( pm->ps->legsAnim ) && !BG_InRoll(pm->ps, pm->ps->legsAnim) )
+			{//roll!
+				rolled = PM_TryRoll();
+			}
+			if ( !rolled )
+			{ //if the roll failed or didn't attempt, do standard crouching anim stuff.
+				if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) {
+					if ((pm->ps->legsAnim&~ANIM_TOGGLEBIT) != BOTH_CROUCH1WALKBACK && jk2gameplay != VERSION_1_02)
+					{
+						PM_SetAnim(SETANIM_LEGS, BOTH_CROUCH1WALKBACK, setAnimFlags, 100);
+					}
+					else
+					{
+						PM_ContinueLegsAnim( BOTH_CROUCH1WALKBACK );
+					}
+				}
+				else {
+				if ((pm->ps->legsAnim&~ANIM_TOGGLEBIT) != BOTH_CROUCH1WALK && jk2gameplay != VERSION_1_02)
+					{
+						PM_SetAnim(SETANIM_LEGS, BOTH_CROUCH1WALK, setAnimFlags, 100);
+					}
+					else
+					{
+					PM_ContinueLegsAnim( BOTH_CROUCH1WALK );
+					}
+				}
+			}
+			else
+			{ //otherwise send us into the roll
+				pm->ps->legsTimer = 0;
+				pm->ps->legsAnim = 0;
 			PM_SetAnim(SETANIM_BOTH,rolled,SETANIM_FLAG_OVERRIDE|SETANIM_FLAG_HOLD, 150);
 			PM_AddEventWithParm( EV_ROLL, 0 );
-			pm->maxs[2] = CROUCH_MAXS_2;
-			pm->ps->viewheight = DEFAULT_VIEWHEIGHT;
-			pm->ps->pm_flags &= ~PMF_DUCKED;
-			pm->ps->pm_flags |= PMF_ROLLING;
+				pm->maxs[2] = CROUCH_MAXS_2;
+				pm->ps->viewheight = DEFAULT_VIEWHEIGHT;
+				pm->ps->pm_flags &= ~PMF_DUCKED;
+				pm->ps->pm_flags |= PMF_ROLLING;
+			}
 		}
 	}
 	else if ((pm->ps->pm_flags & PMF_ROLLING) && !BG_InRoll(pm->ps, pm->ps->legsAnim) &&
@@ -2814,7 +3502,10 @@ static void PM_Footsteps( void ) {
 	// if we just crossed a cycle boundary, play an apropriate footstep event
 	if ( ( ( old + 64 ) ^ ( pm->ps->bobCycle + 64 ) ) & 128 )
 	{
-		pm->ps->footstepTime = pm->cmd.serverTime + 300;
+		if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) { //ratmod crouch slide footsteps
+			PM_AddEvent(EV_FOOTSTEP);
+		}
+			pm->ps->footstepTime = pm->cmd.serverTime + 300;
 		if ( pm->waterlevel == 1 ) {
 			// splashing
 			PM_AddEvent( EV_FOOTSPLASH );
@@ -3977,6 +4668,32 @@ static void PM_DropTimers( void ) {
 			pm->ps->torsoTimer = 0;
 		}
 	}
+
+	//japro reset timers start
+	if (pm->ps->stats[STAT_DASHTIME] > pml.msec)//JAPRO dodge/dash/wj
+		pm->ps->stats[STAT_DASHTIME] -= pml.msec;
+	else if (pm->ps->stats[STAT_DASHTIME] > 0)
+		pm->ps->stats[STAT_DASHTIME] = 0;
+
+	if (pm->ps->stats[STAT_WJTIME] > pml.msec)//JAPRO dodge/dash/wj
+		pm->ps->stats[STAT_WJTIME] -= pml.msec;
+	else if (pm->ps->stats[STAT_WJTIME] > 0)
+		pm->ps->stats[STAT_WJTIME] = 0;
+
+	if (pm->ps->stats[STAT_JUMPTIME] > pml.msec)
+		pm->ps->stats[STAT_JUMPTIME] -= pml.msec;
+	else if (pm->ps->stats[STAT_JUMPTIME] > 0)
+		pm->ps->stats[STAT_JUMPTIME] = 0;
+	//japro reset timers end
+
+	// This highly complex piece of code determines when to decrement the slide - ratmod crouchslide
+	// timer. The slide is sometimes killed here as well.
+	if ((pm->pmove_movement & MOVEMENT_SLIDE) && (VectorLength(pm->ps->velocity) < pm_slide_crouchwishspeed)) {
+		pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING;
+	}
+	if (pm->ps->stats[STAT_SLIDETIMEOUT] > ((pm->pmove_movement & MOVEMENT_SLIDE) && (pm->ps->pm_flags & PMF_DUCKED) ? MIN_QINT / 2 : 0)) {
+		pm->ps->stats[STAT_SLIDETIMEOUT] -= pml.msec;
+	}
 }
 
 /*
@@ -4663,8 +5380,16 @@ void PmoveSingle (pmove_t *pmove) {
 	PM_SetWaterLevel();
 	pml.previous_waterlevel = pmove->waterlevel;
 
+	if (pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw dash
+        PM_CheckDash();
+	}
+
 	// set mins, maxs, and viewheight
 	PM_CheckDuck ();
+
+	if (pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw walljump
+		PM_CheckWallJump();
+	}
 
 	// set groundentity
 	PM_GroundTrace();
@@ -4727,7 +5452,16 @@ void PmoveSingle (pmove_t *pmove) {
 	PM_WaterEvents();
 
 	// snap some parts of playerstate to save network bandwidth
-	trap_SnapVector( pm->ps->velocity );
+
+	//japro Walbug fix start, if getting stuck w/o noclip is even possible.  This should maybe be after round float? im not sure..
+	if ((pm->ps->persistant[PERS_TEAM] != TEAM_SPECTATOR) && VectorCompare(pm->ps->origin, pml.previous_origin) /*&& (VectorLengthSquared(pm->ps->velocity) > VectorLengthSquared(pml.previous_velocity))*/)
+		VectorClear(pm->ps->velocity); //Their velocity is increasing while their origin is not moving (wallbug), so prevent this..
+	//To fix rocket wallbug, since that gets applied elsewhere, just always reset vel if origins dont match?
+	//japro Wallbug fix end
+
+	if (!(pm->pmove_float) || pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR) { //japro pmove_float and spectator snapping
+		trap_SnapVector(pm->ps->velocity);
+	}
 
 	if (gPMDoSlowFall)
 	{

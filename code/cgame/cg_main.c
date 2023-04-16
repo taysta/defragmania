@@ -554,6 +554,7 @@ vmCvar_t 	cg_scorePlum;
 vmCvar_t 	cg_smoothClients;
 vmCvar_t	cg_pmove_fixed;
 vmCvar_t	cg_pmove_msec;
+vmCvar_t	cg_pmove_float; //japro pmove_float
 vmCvar_t	cg_cameraMode;
 vmCvar_t	cg_cameraOrbit;
 vmCvar_t	cg_cameraOrbitDelay;
@@ -735,8 +736,9 @@ static cvarTable_t cvarTable[] = { // bk001129
 	{ &cg_smoothClients, "cg_smoothClients", "0", CVAR_USERINFO | CVAR_ARCHIVE},
 	{ &cg_cameraMode, "com_cameraMode", "0", CVAR_CHEAT},
 
-	{ &cg_pmove_fixed, "pmove_fixed", "0", 0},
-	{ &cg_pmove_msec, "pmove_msec", "8", 0},
+	{ &cg_pmove_fixed, "pmove_fixed", "0", CVAR_SERVERINFO},
+	{ &cg_pmove_msec, "pmove_msec", "8", CVAR_SERVERINFO},
+	{ &cg_pmove_float, "pmove_float", "0", CVAR_SERVERINFO}, //japro pmove_float
 	{ &cg_noTaunt, "cg_noTaunt", "0", CVAR_ARCHIVE},
 	{ &cg_noProjectileTrail, "cg_noProjectileTrail", "0", CVAR_ARCHIVE},
 	{ &cg_smallFont, "ui_smallFont", "0.25", CVAR_ARCHIVE},

@@ -145,6 +145,9 @@ static void CG_ParseServerinfo( const char *info ) {
 	cgs.capturelimit = atoi( Info_ValueForKey( info, "capturelimit" ) );
 	cgs.timelimit = atoi( Info_ValueForKey( info, "timelimit" ) );
 	cgs.maxclients = atoi( Info_ValueForKey( info, "sv_maxclients" ) );
+	cgs.movement = atoi( Info_ValueForKey( info, "g_movement" ) ); 			//japro movement styles
+	cgs.autoJump = atoi( Info_ValueForKey( info, "g_autoJump" ) ); 			//japro autojump
+	cgs.stepSlideFix = atoi(Info_ValueForKey(info, "g_stepSlideFix")); 		//japro/jka stepslidefix
 	mapname = Info_ValueForKey( info, "mapname" );
 
 

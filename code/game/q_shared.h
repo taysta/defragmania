@@ -1374,7 +1374,7 @@ typedef struct playerState_s {
 	int			weaponChargeTime;
 	int			weaponChargeSubtractTime;
 	int			gravity;
-	int			speed;
+	float		speed;				//japro speed float precision
 	int			basespeed; //used in prediction to know base server g_speed value when modifying speed between updates
 	int			delta_angles[3];	// add to command angles to get view direction
 									// changed by spawns, rotating objects, and teleporters
@@ -1787,6 +1787,8 @@ typedef struct playerState_1_02_s {
 #define BUTTON_FORCE_LIGHTNING	1024
 
 #define BUTTON_FORCE_DRAIN		2048
+
+#define BUTTON_DASH				8192		//japro +button13 for wsw dash
 
 // Here's an interesting bit.  The bots in TA used buttons to do additional gestures.
 // I ripped them out because I didn't want too many buttons given the fact that I was already adding some for JK2.

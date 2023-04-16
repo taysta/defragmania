@@ -4020,7 +4020,8 @@ static bind_t g_bindings[] =
 	{"cg_thirdperson !",-1,					-1,		-1,	-1},
 	{"saveDemo",		-1,					-1,		-1,	-1},
 	{"saveDemoLast",	-1,					-1,		-1,	-1},
-};
+    {"+button13",		-1,					-1,		-1,	-1}, //japro wsw dash
+        };
 
 
 static const int g_bindCount = sizeof(g_bindings) / sizeof(bind_t);

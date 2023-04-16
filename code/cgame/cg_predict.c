@@ -692,6 +692,7 @@ void CG_PredictPlayerState( void ) {
 
 	cg_pmove.pmove_fixed = cg_pmove_fixed.integer;// | cg_pmove_fixed.integer;
 	cg_pmove.pmove_msec = cg_pmove_msec.integer;
+	cg_pmove.pmove_float = cg_pmove_float.integer; // japro pmove_float
 
 	// run cmds
 	moved = qfalse;
@@ -798,6 +799,11 @@ void CG_PredictPlayerState( void ) {
 			}
 		}
 
+		//dfmania - clientside prediction start
+		cg_pmove.pmove_movement = cgs.movement;
+		cg_pmove.pmove_autoJump = cgs.autoJump;
+		cg_pmove.pmove_stepSlideFix = cgs.stepSlideFix;
+		//dfmania - clientside prediction end
 		Pmove (&cg_pmove);
 
 		for ( i = 0 ; i < MAX_CLIENTS ; i++ )

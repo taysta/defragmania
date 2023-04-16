@@ -32,24 +32,46 @@ typedef struct
 	int			previous_waterlevel;
 
 	int			seed;
+	qboolean	clipped; //japro nospeed ramp fix
 } pml_t;
 
 extern	pml_t		pml;
 
 // movement parameters
-extern	float	pm_stopspeed;
-extern	float	pm_duckScale;
-extern	float	pm_swimScale;
-extern	float	pm_wadeScale;
+extern	const	float	pm_stopspeed;
+extern	const	float	pm_duckScale;
+extern	const	float	pm_swimScale;
+extern	const	float	pm_wadeScale;
 
-extern	float	pm_accelerate;
-extern	float	pm_airaccelerate;
-extern	float	pm_wateraccelerate;
-extern	float	pm_flyaccelerate;
+extern	const	float	pm_accelerate;
+extern	const	float	pm_airaccelerate;
+extern	const	float	pm_wateraccelerate;
+extern	const	float	pm_flyaccelerate;
 
-extern	float	pm_friction;
-extern	float	pm_waterfriction;
-extern	float	pm_flightfriction;
+extern	const	float	pm_friction;
+extern	const	float	pm_waterfriction;
+extern	const	float	pm_flightfriction;
+
+//japro/dfmania movement parameters start
+extern	const	float	pm_vq3_duckScale;
+
+extern	const	float	pm_cpm_accelerate;
+extern	const	float	pm_cpm_airaccelerate;
+extern	const	float	pm_cpm_airstopaccelerate;
+extern	const	float	pm_cpm_airstrafeaccelerate;
+extern	const	float	pm_cpm_airstrafewishspeed;
+extern	const	float	pm_cpm_aircontrol;
+extern	const	float	pm_cpm_friction;
+
+extern	const	float	pm_wsw_accelerate;
+extern	const	float	pm_wsw_duckScale;
+
+extern	const	float	pm_slick_accelerate;
+extern	const	float	pm_slick_airstrafeaccelerate;
+
+extern	const	float	pm_qw_airaccelerate;
+
+//japro/dfmania movement parameters end
 
 extern	int		c_pmove;
 

@@ -1195,11 +1195,23 @@ saberMoveName_t PM_SaberLungeAttackMove( void )
 saberMoveName_t PM_SaberJumpAttackMove( void )
 {
 	vec3_t fwdAngles, jumpFwd;
-
+	int speed = 300; //japro move style dfa check
 	VectorCopy( pm->ps->viewangles, fwdAngles );
 	fwdAngles[PITCH] = fwdAngles[ROLL] = 0;
 	AngleVectors( fwdAngles, jumpFwd, NULL, NULL );
-	VectorScale( jumpFwd, 300, pm->ps->velocity );
+	if ((pm->pmove_movement == MOVEMENT_JK2 || pm->pmove_movement == MOVEMENT_QW || pm->pmove_movement == MOVEMENT_PJK)) {//japro move style dfa check start
+		trace_t tr;
+		vec3_t down;
+
+		VectorCopy(pm->ps->origin, down);
+		down[2] -= 256;
+		pm->trace(&tr, pm->ps->origin, pm->mins, pm->maxs, down, pm->ps->clientNum, MASK_SOLID); //Change this to mask_playersolid to allow dfa glitch on more maps (annh slide man etc).
+
+		if ((tr.plane.normal[2] >= MIN_WALK_NORMAL) && !(tr.surfaceFlags & SURF_SLICK) && !(tr.surfaceFlags & SURF_FORCEFIELD)) { //Check if on slope, dunno why slick is sometimes forcefield
+			speed = 250;
+		}
+	} //japro move style dfa check end
+	VectorScale( jumpFwd, speed, pm->ps->velocity );
 	pm->ps->velocity[2] = 280;
 	PM_SetForceJumpZStart(pm->ps->origin[2]);//so we don't take damage if we land at same height
 

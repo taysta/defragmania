@@ -100,6 +100,10 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	// set angles
 	SetClientViewAngle( player, angles );
 
+	// Ratmod - reset crouch slide.
+	player->client->ps.stats[STAT_EXTFLAGS] &= EXTFL_SLIDING;
+	player->client->ps.stats[STAT_SLIDETIMEOUT] = 0;
+
 	// kill anything at the destination
 	if ( player->client->sess.sessionTeam != TEAM_SPECTATOR ) {
 		G_KillBox (player);

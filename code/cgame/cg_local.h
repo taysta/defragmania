@@ -1333,6 +1333,9 @@ typedef struct {
 	int				capturelimit;
 	int				timelimit;
 	int				maxclients;
+	int				movement; //japro/dfmania movement style
+	qboolean		autoJump; //japro/dfmania autojump
+	qboolean		stepSlideFix; //japro/jka stepslidefix
 	qboolean		needpass;
 	qboolean		jediVmerc;
 	int				wDisable;
@@ -1542,6 +1545,7 @@ extern	vmCvar_t		cg_hudFiles;
 extern	vmCvar_t		cg_smoothClients;
 extern	vmCvar_t		cg_pmove_fixed;
 extern	vmCvar_t		cg_pmove_msec;
+extern	vmCvar_t		cg_pmove_float; //japro pmove_float
 extern	vmCvar_t		cg_cameraOrbit;
 extern	vmCvar_t		cg_cameraOrbitDelay;
 extern	vmCvar_t		cg_timescaleFadeEnd;

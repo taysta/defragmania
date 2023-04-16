@@ -215,7 +215,7 @@ PM_StepSlideMove
 */
 void PM_StepSlideMove( qboolean gravity ) {
 	vec3_t		start_o, start_v;
-	// vec3_t		down_o, down_v;
+	vec3_t		down_o, down_v;
 	trace_t		trace;
 //	float		down_dist, up_dist;
 //	vec3_t		delta, delta2;
@@ -224,13 +224,40 @@ void PM_StepSlideMove( qboolean gravity ) {
 	float		stepSize;
 	float		totalVel;
 	float		pre_z;
-	int			usingspeed;
-	int			i;
+	int			usingspeed = 0;
+	int			i = 0;
 
-	i = 0;
+	//japro slide step start
+	qboolean skipStep = qfalse;
+	int			NEW_STEPSIZE = STEPSIZE;
+	const int	moveStyle = pm->pmove_movement;
 
-	usingspeed = 0;
+	if (pm->pmove_stepSlideFix) {
+		if (moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_CPMA || moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_SLICK || moveStyle == MOVEMENT_SLIDE) {
+			if (pm->ps->velocity[2] > 0 && pm->cmd.upmove > 0) {
+				int jumpHeight = pm->ps->origin[2] - pm->ps->fd.forceJumpZStart;
 
+				if (jumpHeight > 48)
+					jumpHeight = 48;
+				else if (jumpHeight < 22)
+					jumpHeight = 22;
+
+				NEW_STEPSIZE = 48 - jumpHeight + 22;
+
+				//trap->SendServerCommand(-1, va("print \"new stepsize: %i, expected max end height: %i\n\"", NEW_STEPSIZE, NEW_STEPSIZE + (int)(pm->ps->origin[2] - pm->ps->fd.forceJumpZStart)));
+
+				//This means that we can always clip things up to 48 units tall, if we are moving up when we hit it and from a bhop..
+				//It means we can sometimes clip things up to 70 units tall, if we hit it in right part of jump
+				//Should it be higher..? some of the things in q3 are 56 units tall..
+
+				//NEW_STEPSIZE = 46;
+				//Make stepsize equal to.. our current 48 - our current jumpheight ?
+			}
+			else
+				NEW_STEPSIZE = 22;
+		}
+		//japro slide step end
+	}
 	VectorCopy (pm->ps->origin, start_o);
 	VectorCopy (pm->ps->velocity, start_v);
 
@@ -244,7 +271,7 @@ void PM_StepSlideMove( qboolean gravity ) {
 	}
 
 	VectorCopy(start_o, down);
-	down[2] -= STEPSIZE;
+	down[2] -= NEW_STEPSIZE; //japro
 	pm->trace (&trace, start_o, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
 	VectorSet(up, 0, 0, 1);
 	// never step up when you still have up velocity
@@ -257,11 +284,11 @@ void PM_StepSlideMove( qboolean gravity ) {
 		}
 	}
 
-	// VectorCopy (pm->ps->origin, down_o);
-	// VectorCopy (pm->ps->velocity, down_v);
+	VectorCopy (pm->ps->origin, down_o); //japro
+	VectorCopy (pm->ps->velocity, down_v); //japro
 
 	VectorCopy (start_o, up);
-	up[2] += STEPSIZE;
+	up[2] += NEW_STEPSIZE; //japro
 
 	// test the player position if they were a stepheight higher
 	pm->trace (&trace, start_o, pm->mins, pm->maxs, up, pm->ps->clientNum, pm->tracemask);
@@ -286,6 +313,7 @@ void PM_StepSlideMove( qboolean gravity ) {
 
 	PM_SlideMove( gravity );
 
+	pml.clipped = qtrue; //japro nospeed ramp fix, if we made it to this point there wont be a nospeed ramp
 	VectorSubtract(pm->ps->velocity, prevel, prevel);
 	if (prevel[0] < 0)
 	{
@@ -383,6 +411,92 @@ void PM_StepSlideMove( qboolean gravity ) {
 		}
 	} else 
 #endif
+		//japro/jka stepSlideFix start
+		if (pm->pmove_stepSlideFix)
+		{
+			if (pm->ps->clientNum < MAX_CLIENTS
+				&& trace.plane.normal[2] < MIN_WALK_NORMAL)
+			{//normal players cannot step up slopes that are too steep to walk on!
+				vec3_t stepVec;
+				//okay, the step up ends on a slope that it too steep to step up onto,
+				//BUT:
+				//If the step looks like this:
+				//  (B)\__
+				//        \_____(A)
+				//Then it might still be okay, so we figure out the slope of the entire move
+				//from (A) to (B) and if that slope is walk-upabble, then it's okay
+				VectorSubtract(trace.endpos, down_o, stepVec);
+				VectorNormalize(stepVec);
+				if (stepVec[2] > (1.0f - MIN_WALK_NORMAL))
+				{
+					skipStep = qtrue;
+				}
+			}
+		}
+
+	if (!trace.allsolid
+		&& !skipStep) //normal players cannot step up slopes that are too steep to walk on!
+	{
+		VectorCopy(trace.endpos, pm->ps->origin);
+		if (pm->pmove_stepSlideFix)
+		{
+			if (trace.fraction < 1.0) {
+				if (moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_SLICK) { //Make Warsow Rampjump not slow down your XY speed
+					vec3_t oldVel, clipped_velocity, newVel;
+					float oldSpeed, newSpeed;
+
+					VectorCopy(pm->ps->velocity, oldVel);
+					oldSpeed = oldVel[0] * oldVel[0] + oldVel[1] * oldVel[1];
+
+					PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, clipped_velocity, OVERCLIP); //WSW RAMPJUMP 3
+
+					VectorCopy(clipped_velocity, newVel);
+					newVel[2] = 0;
+					newSpeed = newVel[0] * newVel[0] + newVel[1] * newVel[1];
+
+					if (newSpeed > oldSpeed)
+						VectorCopy(clipped_velocity, pm->ps->velocity);
+				}
+				else {
+					PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP);
+				}
+			}
+		}
+	}
+	else
+	{
+		if (pm->pmove_stepSlideFix)
+		{
+			VectorCopy(down_o, pm->ps->origin);
+			VectorCopy(down_v, pm->ps->velocity);
+		}
+	}
+	if (!pm->pmove_stepSlideFix)
+	{
+		if (trace.fraction < 1.0) {
+			if (moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_SLICK) {
+				vec3_t oldVel, clipped_velocity, newVel;
+				float oldSpeed, newSpeed;
+
+				VectorCopy(pm->ps->velocity, oldVel);
+				oldSpeed = oldVel[0] * oldVel[0] + oldVel[1] * oldVel[1];
+
+				PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, clipped_velocity, OVERCLIP); //WSW RAMPJUMP 2
+
+				VectorCopy(clipped_velocity, newVel);
+				newVel[2] = 0;
+				newSpeed = newVel[0] * newVel[0] + newVel[1] * newVel[1];
+
+				if (newSpeed > oldSpeed)
+					VectorCopy(clipped_velocity, pm->ps->velocity);
+			}
+			else {
+				PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP);
+			}
+		}
+	}
+	//japro/jka stepSlideFix end
+
 	{
 		// use the step move
 		float	delta;
