@@ -634,6 +634,21 @@ typedef struct {
 #define MAX_REWARDSTACK		10
 #define MAX_SOUNDBUFFER		20
 
+#define	MAX_CLIENT_SPEEDPOINTS		32
+/*
+=================
+clientSpeedpoint_s
+
+Struct storing the client's speed points
+=================
+*/
+typedef struct clientSpeedpoint_s
+{
+	int		speed;
+	qboolean isSet;
+	qboolean reached;
+} clientSpeedpoint_t;
+
 //======================================================================
 
 // all cg.stepTime, cg.duckTime, cg.landTime, etc are set to cg.time when the action
@@ -872,6 +887,16 @@ Ghoul2 Insert End
 */
 
 	char				sharedBuffer[MAX_CG_SHARED_BUFFER_SIZE];
+	//japro strafehelper & speedometer start
+	float               lastGroundSpeeds[512];
+	float				currentSpeed, previousSpeed;
+	vec3_t				lastGroundPosition;
+	int					lastGroundTime, lastJumpHeightTime, lastJumpDistanceTime;
+	qboolean			firstTimeInAir, wasOnGround;
+	float				lastZSpeed, lastGroundSpeed, lastJumpHeight, lastJumpDistance;
+	vec4_t				strafeHelperActiveColor;
+	vec4_t				crosshairColor;
+	//japro strafehelper & speedometer end
 } cg_t;
 
 #define MAX_TICS	14
@@ -1225,6 +1250,34 @@ typedef struct {
 	sfxHandle_t	zoomEnd;
 	sfxHandle_t	disruptorZoomLoop;
 
+	//japro movement keys & strafehelper start
+	qhandle_t	keyCrouchOffShader;
+	qhandle_t	keyCrouchOnShader;
+	qhandle_t	keyJumpOffShader;
+	qhandle_t	keyJumpOnShader;
+	qhandle_t	keyBackOffShader;
+	qhandle_t	keyBackOnShader;
+	qhandle_t	keyForwardOffShader;
+	qhandle_t	keyForwardOnShader;
+	qhandle_t	keyLeftOffShader;
+	qhandle_t	keyLeftOnShader;
+	qhandle_t	keyRightOffShader;
+	qhandle_t	keyRightOnShader;
+	qhandle_t   keyAttackOn;
+	qhandle_t   keyAttackOff;
+	qhandle_t   keyAltOn;
+	qhandle_t   keyAltOff;
+	qhandle_t	keyCrouchOnShader2;
+	qhandle_t	keyJumpOnShader2;
+	qhandle_t	keyBackOnShader2;
+	qhandle_t	keyForwardOnShader2;
+	qhandle_t	keyLeftOnShader2;
+	qhandle_t	keyRightOnShader2;
+	qhandle_t   keyAttackOn2;
+	qhandle_t   keyAltOn2;
+	qhandle_t   leftTriangle;
+	qhandle_t   rightTriangle;
+	sfxHandle_t	hitSound4; //japro strafehelper & speedometer end
 } cgMedia_t;
 
 
@@ -1586,6 +1639,30 @@ extern	vmCvar_t		cg_debugBB;
 /*
 Ghoul2 Insert End
 */
+
+//japro speedometer/strafehelper/movementkeys cvars start
+extern	vmCvar_t		cg_speedometer;
+extern	vmCvar_t		cg_speedometerX;
+extern	vmCvar_t		cg_speedometerY;
+extern	vmCvar_t		cg_speedometerJumps;
+extern	vmCvar_t		cg_speedometerJumpsX;
+extern	vmCvar_t		cg_speedometerJumpsY;
+extern	vmCvar_t		cg_speedometerSize;
+extern	vmCvar_t		cg_jumpGoal;
+extern	vmCvar_t		cg_strafeHelper;
+extern	vmCvar_t		cg_strafeHelper_FPS;
+extern	vmCvar_t		cg_strafeHelperOffset;
+extern	vmCvar_t		cg_strafeHelperLineWidth;
+extern	vmCvar_t		cg_strafeHelperPrecision;
+extern	vmCvar_t		cg_strafeHelperCutoff;
+extern	vmCvar_t		cg_strafeHelperActiveColor;
+extern	vmCvar_t		cg_strafeHelperInactiveAlpha;
+extern	vmCvar_t		cg_crosshairColor;
+extern	vmCvar_t		cg_movementKeys;
+extern	vmCvar_t		cg_movementKeysX;
+extern	vmCvar_t		cg_movementKeysY;
+extern	vmCvar_t		cg_movementKeysSize;
+//japro speedometer/strafehelper/movement keys cvars end
 
 //
 // cg_main.c

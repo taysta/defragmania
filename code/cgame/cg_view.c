@@ -343,6 +343,32 @@ static void CG_ResetThirdPersonViewDamp(void)
 	}
 }
 
+/*
+===================
+CG_ClearThirdPersonDamp
+japro - workaround for camera jerk when clearing camera damp vectors, should probably be refactored into, if not fixed in the actual ThirdPersonDamp code
+===================
+*/
+void CG_ClearThirdPersonDamp(void)
+{
+	vec3_t oldLoc, oldTarget;
+	if (!cg.snap)
+		return;
+
+	VectorCopy(cam.loc.ideal, oldLoc);
+	VectorCopy(cam.target.ideal, oldTarget);
+
+	CG_ResetThirdPersonViewDamp();
+
+	VectorCopy(oldLoc, cam.loc.ideal);
+	VectorCopy(oldTarget, cam.target.ideal);
+	VectorCopy(oldLoc, cam.loc.prevIdeal);
+	VectorCopy(oldTarget, cam.target.prevIdeal);
+
+	cam.lastTime = cg.predictedPlayerState.commandTime;
+	cam.lastTimeFrac = cg.predictedTimeFrac;
+}
+
 static void CG_DampPosition(dampPos_t *pos, float dampfactor, float dtime)
 {
 	vec3_t idealDelta;
@@ -403,7 +429,7 @@ static void CG_UpdateThirdPersonTargetDamp(float dtime)
 	// Automatically get the ideal target, to avoid jittering.
 	CG_CalcIdealThirdPersonViewTarget();
 
-	if (cg_thirdPersonTargetDamp.value >= 1.0f)
+	if (cg_thirdPersonTargetDamp.value >= 1.0f || (cg.snap->ps.pm_flags & PMF_FOLLOW || cg_strafeHelper.integer & (1 << 0) || cg_strafeHelper.integer & (1 << 1) || cg_strafeHelper.integer & (1 << 2) || cg_strafeHelper.integer & (1 << 3))) //japro strafehelper
 	{	// No damping.
 		VectorClear(cam.target.damp);
 	}
@@ -462,7 +488,7 @@ static void CG_UpdateThirdPersonCameraDamp(float dtime, float stiffFactor, float
 		}
 	}
 
-	if (dampfactor >= 1.0f)
+	if (dampfactor >= 1.0f || (cg.snap->ps.pm_flags & PMF_FOLLOW || cg_strafeHelper.integer & (1 << 0) || cg_strafeHelper.integer & (1 << 1) || cg_strafeHelper.integer & (1 << 2) || cg_strafeHelper.integer & (1 << 3))) //japro strafehelper
 	{	// No damping.
 		VectorClear(cam.loc.damp);
 	}
