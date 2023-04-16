@@ -905,20 +905,20 @@ japro - updates crosshair colors when changes
 */
 static void CG_CrosshairColorChange(void) {
 	int i;
-	sscanf_s(cg_crosshairColor.string, "%f %f %f %f", &cg.crosshairColor[0], &cg.crosshairColor[1], &cg.crosshairColor[2], &cg.crosshairColor[3]);
-
-	for (i = 0; i < 4; i++) {
-		if (cg.crosshairColor[i] < 1)
-			cg.crosshairColor[i] = 0;
-		else if (cg.crosshairColor[i] > 255)
-			cg.crosshairColor[i] = 255;
+	if (sscanf(cg_crosshairColor.string, "%f %f %f %f", &cg.crosshairColor[0], &cg.crosshairColor[1], &cg.crosshairColor[2], &cg.crosshairColor[3]))
+	{
+		for (i = 0; i < 4; i++) {
+			if (cg.crosshairColor[i] < 1)
+				cg.crosshairColor[i] = 0;
+			else if (cg.crosshairColor[i] > 255)
+				cg.crosshairColor[i] = 255;
+		}
+	} else {
+		cg.crosshairColor[0] /= 255.0f;
+		cg.crosshairColor[1] /= 255.0f;
+		cg.crosshairColor[2] /= 255.0f;
+		cg.crosshairColor[3] /= 255.0f;
 	}
-
-	cg.crosshairColor[0] /= 255.0f;
-	cg.crosshairColor[1] /= 255.0f;
-	cg.crosshairColor[2] /= 255.0f;
-	cg.crosshairColor[3] /= 255.0f;
-
 	//Com_Printf("New color is %f, %f, %f, %f\n", cg.crosshairColor[0], cg.crosshairColor[1], cg.crosshairColor[2], cg.crosshairColor[3]);
 }
 
@@ -929,7 +929,7 @@ japro - updates strafehelper active colors when changes
 ===================
 */
 static void CG_StrafeHelperActiveColorChange(void) {
-	if (sscanf_s(cg_strafeHelperActiveColor.string, "%f %f %f %f", &cg.strafeHelperActiveColor[0], &cg.strafeHelperActiveColor[1], &cg.strafeHelperActiveColor[2], &cg.strafeHelperActiveColor[3]) != 4) {
+	if (sscanf(cg_strafeHelperActiveColor.string, "%f %f %f %f", &cg.strafeHelperActiveColor[0], &cg.strafeHelperActiveColor[1], &cg.strafeHelperActiveColor[2], &cg.strafeHelperActiveColor[3]) != 4) {
 		cg.strafeHelperActiveColor[0] = 0;
 		cg.strafeHelperActiveColor[1] = 255;
 		cg.strafeHelperActiveColor[2] = 0;
