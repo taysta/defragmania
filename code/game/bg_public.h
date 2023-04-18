@@ -301,7 +301,9 @@ typedef struct {
     int			pmove_movement; // dfmania/ratmod - selects movement style
 	int			pmove_autoJump; //japro - hold to jump
 	qboolean	pmove_stepSlideFix; //japro/jka stepslidefix
-	// callbacks to test the world
+    qboolean    pmove_upCmdScale; //japro cmdscale decceleration (holding upmove reducing accel)
+
+    // callbacks to test the world
 	// these will be different functions during game and cgame
 	void		(*trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask );
 	int			(*pointcontents)( const vec3_t point, int passEntityNum );

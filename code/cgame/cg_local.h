@@ -1389,6 +1389,7 @@ typedef struct {
 	int				movement; //japro/dfmania movement style
 	qboolean		autoJump; //japro/dfmania autojump
 	qboolean		stepSlideFix; //japro/jka stepslidefix
+    qboolean        upCmdScale; //japro cmdscale decceleration (holding upmove reducing accel)
 	qboolean		needpass;
 	qboolean		jediVmerc;
 	int				wDisable;

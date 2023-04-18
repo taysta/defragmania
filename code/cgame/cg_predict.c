@@ -803,6 +803,7 @@ void CG_PredictPlayerState( void ) {
 		cg_pmove.pmove_movement = cgs.movement;
 		cg_pmove.pmove_autoJump = cgs.autoJump;
 		cg_pmove.pmove_stepSlideFix = cgs.stepSlideFix;
+        cg_pmove.pmove_upCmdScale = cgs.upCmdScale;
 		//dfmania - clientside prediction end
 		Pmove (&cg_pmove);
 

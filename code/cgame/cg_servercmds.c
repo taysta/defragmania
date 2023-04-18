@@ -148,6 +148,7 @@ static void CG_ParseServerinfo( const char *info ) {
 	cgs.movement = atoi( Info_ValueForKey( info, "g_movement" ) ); 			//japro movement styles
 	cgs.autoJump = atoi( Info_ValueForKey( info, "g_autoJump" ) ); 			//japro autojump
 	cgs.stepSlideFix = atoi(Info_ValueForKey(info, "g_stepSlideFix")); 		//japro/jka stepslidefix
+    cgs.upCmdScale = atoi( Info_ValueForKey( info, "g_upCmdScale" ) ); 	//japro holding jump reducing accel
 	mapname = Info_ValueForKey( info, "mapname" );
 
 

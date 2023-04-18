@@ -636,6 +636,9 @@ static float PM_CmdScale( usercmd_t *cmd ) {
 	int		umove = 0; //cmd->upmove;
 			//don't factor upmove into scaling speed
 
+    if(pm->pmove_upCmdScale){ //japro g_noCmdScale (scale accep down while holding jump)
+        umove = cmd->upmove;
+    }
 	max = abs( cmd->forwardmove );
 	if ( abs( cmd->rightmove ) > max ) {
 		max = abs( cmd->rightmove );
