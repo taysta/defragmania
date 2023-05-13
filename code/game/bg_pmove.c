@@ -2642,8 +2642,6 @@ static void PM_CrashLand( void ) {
             // play slide sound immediately
             pm->ps->bobCycle = 63;
 			}
-		// play slide sound immediately
-		pm->ps->bobCycle = 63;
 		//ratmod crouchslide end
 	}
 
