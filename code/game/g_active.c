@@ -1115,7 +1115,7 @@ void ClientThink_real( gentity_t *ent ) {
 		client->ps.speed *= 1.28f;//bring it up to 320 on g_speed 250 for vq3/wsw physics mode
 		client->ps.basespeed *= 1.28f;//bring it up to 320 on g_speed 250 for vq3/wsw physics mode
 	}
-	else if (g_movement.integer == MOVEMENT_VQ3 == MOVEMENT_SPEED) {
+	else if (g_movement.integer == MOVEMENT_SPEED) {
 		client->ps.speed *= 1.7f;
 		client->ps.basespeed *= 1.7f;
 		if (client->ps.fd.forcePower > 50)

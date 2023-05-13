@@ -1910,11 +1910,11 @@ static void PM_AirMove( void ) {
 	cmd = pm->cmd;
 
 	//ratmod crouchslide
-	if (!cmd.forwardmove && !cmd.rightmove) {
+	if (!cmd.forwardmove && !cmd.rightmove && pm->pmove_movement == MOVEMENT_SLIDE) {
 		pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING;
 	}
 
-	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING && pm->pmove_movement == MOVEMENT_SLIDE) {
 		cmd.upmove = 0;
 	} //ratmod crouchslide
 
@@ -2329,7 +2329,7 @@ static void PM_WalkMove( void ) {
 			wishspeed = pm->ps->speed * realDuckScale;
 		}
 	}
-	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) { //ratmod crouchsliding
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING && pm->pmove_movement == MOVEMENT_SLIDE) { //ratmod crouchsliding
 		wishspeed = pm_slide_crouchwishspeed;
 	}
 
@@ -2351,9 +2351,10 @@ static void PM_WalkMove( void ) {
 	} else {
 		accelerate = realAccelerate; //japro movement styles accelerate
 	}
-	// Crouch slide acceleration.
-	vel = VectorLength(pm->ps->velocity);
-	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING && pm->pmove_movement == MOVEMENT_SLIDE) {
+        // Crouch slide acceleration.
+        vel = VectorLength(pm->ps->velocity);
 		// Turn.
 		accelerate = pm_slide_crouchturn;
 	}
@@ -2361,7 +2362,7 @@ static void PM_WalkMove( void ) {
 	PM_Accelerate (wishdir, wishspeed, accelerate);
 
 	//crouch slide
-	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING && pm->pmove_movement == MOVEMENT_SLIDE) {
 		float speedCap;
 		if (VectorLength(pm->ps->velocity) < vel) {
 			pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING;
@@ -2385,7 +2386,7 @@ static void PM_WalkMove( void ) {
 	//Com_Printf("velocity = %1.1f %1.1f %1.1f\n", pm->ps->velocity[0], pm->ps->velocity[1], pm->ps->velocity[2]);
 	//Com_Printf("velocity1 = %1.1f\n", VectorLength(pm->ps->velocity));
 
-	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK || moveStyle == MOVEMENT_SLICK || pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) //japro slick start
+	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK || moveStyle == MOVEMENT_SLICK || moveStyle == MOVEMENT_SLIDE && pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) //japro slick start
 	{
 		if (pm->pmove_float != 0) {
 			pm->ps->velocity[2] -= 800 * pml.frametime; //japro - Use 800 as gravity instead of 750 if pmove_float - fixes sliding down slick slopes like lappen
@@ -2426,8 +2427,10 @@ static void PM_DeadMove( void ) {
 	float	forward;
 
 	if ( !pml.walking ) {
-		pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING; //ratmod sliding, reset timer
-		pm->ps->stats[STAT_SLIDETIMEOUT] = 0;
+        if(pm->pmove_movement == MOVEMENT_SLIDE) {
+            pm->ps->stats[STAT_EXTFLAGS] &= ~EXTFL_SLIDING; //ratmod sliding, reset timer
+            pm->ps->stats[STAT_SLIDETIMEOUT] = 0;
+        }
 		return;
 	}
 
@@ -2636,6 +2639,8 @@ static void PM_CrashLand( void ) {
 		if (pm->pmove_movement == MOVEMENT_SLIDE) {
 			pm->ps->stats[STAT_EXTFLAGS] |= EXTFL_SLIDING;
 			pm->ps->stats[STAT_SLIDETIMEOUT] = pm_slide_crouchgogracetime;
+            // play slide sound immediately
+            pm->ps->bobCycle = 63;
 			}
 		// play slide sound immediately
 		pm->ps->bobCycle = 63;
@@ -2812,7 +2817,7 @@ static void PM_CrashLand( void ) {
 	} //japro overbounce finish - only styles without force jumps can OB
 
 	//ratmod slide sounds
-	if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+	if (pm->pmove_movement == MOVEMENT_SLIDE && pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
 		return;
 	}
 	// start footstep cycle over
@@ -3370,7 +3375,7 @@ static void PM_Footsteps( void ) {
 	if ( pm->ps->pm_flags & PMF_DUCKED )
 	{
 		//ratmod crouchslide
-		if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
+		if (pm->pmove_movement == MOVEMENT_SLIDE && pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) {
 			bobmove = 0.4f;
 			PM_ContinueLegsAnim(BOTH_CROUCH1WALK);
 		}
@@ -3505,7 +3510,7 @@ static void PM_Footsteps( void ) {
 	// if we just crossed a cycle boundary, play an apropriate footstep event
 	if ( ( ( old + 64 ) ^ ( pm->ps->bobCycle + 64 ) ) & 128 )
 	{
-		if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) { //ratmod crouch slide footsteps
+		if (pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING && pm->pmove_movement == MOVEMENT_SLIDE) { //ratmod crouch slide footsteps
 			PM_AddEvent(EV_FOOTSTEP);
 		}
 			pm->ps->footstepTime = pm->cmd.serverTime + 300;
@@ -4673,16 +4678,16 @@ static void PM_DropTimers( void ) {
 	}
 
 	//japro reset timers start
-	if (pm->ps->stats[STAT_DASHTIME] > pml.msec)//JAPRO dodge/dash/wj
-		pm->ps->stats[STAT_DASHTIME] -= pml.msec;
-	else if (pm->ps->stats[STAT_DASHTIME] > 0)
-		pm->ps->stats[STAT_DASHTIME] = 0;
-
-	if (pm->ps->stats[STAT_WJTIME] > pml.msec)//JAPRO dodge/dash/wj
-		pm->ps->stats[STAT_WJTIME] -= pml.msec;
-	else if (pm->ps->stats[STAT_WJTIME] > 0)
-		pm->ps->stats[STAT_WJTIME] = 0;
-
+    if(pm->pmove_movement == MOVEMENT_WSW) {
+        if (pm->ps->stats[STAT_DASHTIME] > pml.msec)//JAPRO dodge/dash/wj
+            pm->ps->stats[STAT_DASHTIME] -= pml.msec;
+        else if (pm->ps->stats[STAT_DASHTIME] > 0)
+            pm->ps->stats[STAT_DASHTIME] = 0;
+        if (pm->ps->stats[STAT_WJTIME] > pml.msec)//JAPRO dodge/dash/wj
+            pm->ps->stats[STAT_WJTIME] -= pml.msec;
+        else if (pm->ps->stats[STAT_WJTIME] > 0)
+            pm->ps->stats[STAT_WJTIME] = 0;
+    }
 	if (pm->ps->stats[STAT_JUMPTIME] > pml.msec)
 		pm->ps->stats[STAT_JUMPTIME] -= pml.msec;
 	else if (pm->ps->stats[STAT_JUMPTIME] > 0)
@@ -5383,14 +5388,14 @@ void PmoveSingle (pmove_t *pmove) {
 	PM_SetWaterLevel();
 	pml.previous_waterlevel = pmove->waterlevel;
 
-	if (pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw dash
+	if (pm->pmove_movement == MOVEMENT_WSW && pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw dash
         PM_CheckDash();
 	}
 
 	// set mins, maxs, and viewheight
 	PM_CheckDuck ();
 
-	if (pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw walljump
+	if (pm->pmove_movement == MOVEMENT_WSW && pm->cmd.buttons & BUTTON_DASH) { //japro warsow/wsw walljump
 		PM_CheckWallJump();
 	}
 
