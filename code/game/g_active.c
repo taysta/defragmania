@@ -1123,7 +1123,7 @@ void ClientThink_real( gentity_t *ent ) {
 	} //japro base speed end
 
 	//japro match 125fps jump height if pmove_float start
-	if (g_pmove_float.integer != 0) {
+	if (g_pmove_float.integer != 0 && g_movement.integer != MOVEMENT_SP) {
 		client->ps.gravity = 750;
 	} //japro match 125fps jump height if pmove_float end
 

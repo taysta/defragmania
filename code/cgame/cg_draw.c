@@ -5344,6 +5344,67 @@ static void CG_DrawStrafeTriangles(vec3_t velocity, float diff, float baseSpeed,
 	}
 }
 
+static float CG_CmdScale( usercmd_t *cmd ) {
+    int		max;
+    float	total;
+    float	scale;
+    int		umove = 0; //cmd->upmove;
+    //don't factor upmove into scaling speed
+
+    if(pm->pmove_upCmdScale){ //japro g_noCmdScale (scale accel down while holding jump)
+        umove = cmd->upmove;
+    }
+    max = abs( cmd->forwardmove );
+    if ( abs( cmd->rightmove ) > max ) {
+        max = abs( cmd->rightmove );
+    }
+    if ( abs( umove ) > max ) {
+        max = abs( umove );
+    }
+    if ( !max ) {
+        return 0;
+    }
+
+    total = sqrt( cmd->forwardmove * cmd->forwardmove
+                  + cmd->rightmove * cmd->rightmove + umove * umove );
+    scale = (float)pm->ps->speed * max / ( 127.0 * total );
+
+    return scale;
+}
+
+static void CG_GetWishspeed(){
+    int i;
+    vec3_t		wishvel;
+    float		fmove, smove;
+    vec3_t		wishdir, forward, right, up;
+    float		wishspeed, wishspeed2;
+    float		scale;
+    usercmd_t	cmd;
+
+    fmove = pm->cmd.forwardmove;
+    smove = pm->cmd.rightmove;
+
+    cmd = pm->cmd;
+    scale = CG_CmdScale( &cmd );
+
+    AngleVectors(cg.refdefViewAngles, forward, right, up);
+    // project moves down to flat plane
+    forward[2] = 0;
+    right[2] = 0;
+    VectorNormalize (forward);
+    VectorNormalize (right);
+
+    for ( i = 0 ; i < 2 ; i++ )
+    {
+        wishvel[i] = forward[i]*fmove + right[i]*smove;
+    }
+    wishvel[2] = 0;
+    VectorCopy (wishvel, cg.wishdir);
+    wishspeed = VectorNormalize(wishdir);
+    wishspeed *= scale;
+
+    cg.wishspeed = wishspeed;
+}
 
 /*
 ===================
@@ -5408,10 +5469,21 @@ static void CG_StrafeHelper(centity_t* cent) {
 		pmFriction = 0.0f;//unless walking
 		pmAccel = 30.0f;
 	}
+    else if(moveStyle == MOVEMENT_SP) {
+        pmAccel = 12.0f;
+        pmAirAccel = 4.0f;
+    }
 
 	if (currentSpeed < (baseSpeed - 1))
 		return;
 
+    if ( pm->pmove_movement == MOVEMENT_SP) {
+        CG_GetWishspeed();
+        if ( DotProduct (pm->ps->velocity, cg.wishdir) < 0.0f )
+        {//Encourage deceleration away from the current velocity
+            baseSpeed *= 1.35;
+        }
+    }
 	if (cg_strafeHelper_FPS.value < 1)
 		frametime = ((float)cg.frametime * 0.001f);
 	else if (cg_strafeHelper_FPS.value > 1000)
@@ -5464,7 +5536,7 @@ static void CG_StrafeHelper(centity_t* cent) {
 				CG_DrawStrafeLine(velocityAngle, (90.0f - (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove < 0 && cmd.rightmove > 0), 10); //SD forwards
 		}
 	}
-	if (moveStyle == MOVEMENT_JK2 || moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_SLIDE || moveStyle == MOVEMENT_SPEED || (moveStyle == MOVEMENT_SLICK && onGround)) { //A/D 
+	if (moveStyle == MOVEMENT_JK2 || moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_SLIDE || moveStyle == MOVEMENT_SPEED || moveStyle == MOVEMENT_SP || (moveStyle == MOVEMENT_SLICK && onGround)) { //A/D
 		if (cg_strafeHelper.integer & SHELPER_A)
 			CG_DrawStrafeLine(velocityAngle, (-45.0f + (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove < 0), 2); //A
 		if (cg_strafeHelper.integer & SHELPER_D)
@@ -5474,7 +5546,7 @@ static void CG_StrafeHelper(centity_t* cent) {
 			CG_DrawStrafeLine(velocityAngle, (135.0f + (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove == 0 && cmd.rightmove > 0), 10); //D
 		}
 	}
-	if (moveStyle == MOVEMENT_JK2 || moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_SLIDE || moveStyle == MOVEMENT_SPEED) {
+	if (moveStyle == MOVEMENT_JK2 || moveStyle == MOVEMENT_VQ3 || moveStyle == MOVEMENT_SLIDE || moveStyle == MOVEMENT_SPEED || moveStyle == MOVEMENT_SP) {
 		if (cg_strafeHelper.integer & SHELPER_W) { //W/S only
 			CG_DrawStrafeLine(velocityAngle, (45.0f + (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove == 0), 0); //W
 			CG_DrawStrafeLine(velocityAngle, (-45.0f - (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove == 0), 0); //W

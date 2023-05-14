@@ -259,6 +259,7 @@ typedef enum {
 	MOVEMENT_SLICK,
 	MOVEMENT_SLIDE,
 	MOVEMENT_SPEED,
+    MOVEMENT_SP,
 
 	MOVEMENT_NUM_MOVEMENTS,
 } movement_t; //japro/dfmania/ratmod movement styles enum end

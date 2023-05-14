@@ -30,6 +30,10 @@ const float	pm_duckaccelerate = 10.0f; //ratmod crouch slide
 const float	pm_wateraccelerate = 4.0f;
 const float	pm_flyaccelerate = 8.0f;
 
+const float pm_sp_accelerate = 12.0f;
+const float pm_sp_airaccelerate = 4.0f;
+const float pm_sp_airDecelRate = 1.35f;
+
 const float	pm_friction = 6.0f;
 const float	pm_waterfriction = 1.0f;
 const float	pm_flightfriction = 3.0f;
@@ -291,6 +295,7 @@ static qboolean PM_HasForceJumps(pmove_t* pm) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_QW:
 	case MOVEMENT_SPEED:
+    case MOVEMENT_SP:
 		return qtrue;
 		break;
 	default:
@@ -302,6 +307,7 @@ static qboolean PM_HasAutoJump(pmove_t* pm) {
 	switch (PM_GetMovePhysics(pm)) {
 	case MOVEMENT_JK2:
 	case MOVEMENT_SPEED:
+    case MOVEMENT_SP:
 		return qfalse;
 		break;
 	default:
@@ -320,6 +326,9 @@ static float PM_GetAccelerate(pmove_t* pm) {
 		break;
 	case MOVEMENT_SLICK:
 		return pm_slick_accelerate;
+        break;
+    case MOVEMENT_SP:
+        return pm_sp_accelerate;
 	default:
 		return pm_accelerate;
 	}
@@ -332,6 +341,10 @@ static float PM_GetAirAccelerate(pmove_t* pm) {
 	case MOVEMENT_WSW:
 	case MOVEMENT_SLICK:
 		return pm_cpm_airaccelerate;
+        break;
+    case MOVEMENT_SP:
+        return pm_sp_airaccelerate;
+        break;
 	default:
 		return pm_airaccelerate;
 	}
@@ -346,6 +359,9 @@ static float PM_GetAirStrafeAccelerate(pmove_t* pm) {
 		break;
 	case MOVEMENT_SLICK:
 		return pm_slick_airstrafeaccelerate;
+        break;
+    case MOVEMENT_SP:
+        return pm_sp_airaccelerate;
 	default:
 		return pm_airaccelerate;
 	}
@@ -992,7 +1008,7 @@ static qboolean PM_CheckJump( void )
 				if ( ( curHeight<=forceJumpHeight[0] ||//still below minimum jump height
 						(pm->ps->fd.forcePower&&pm->cmd.upmove>=10) ) &&////still have force power available and still trying to jump up 
 					curHeight < forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] &&
-					(pm->ps->fd.forceJumpZStart || jk2gameplay != VERSION_1_04))//still below maximum jump height
+					(pm->ps->fd.forceJumpZStart || (jk2gameplay != VERSION_1_04 && pm->pmove_movement != MOVEMENT_SP)))//still below maximum jump height, this is walking off ramp mega boost bug
 				{//can still go up
 					if ( curHeight > forceJumpHeight[0] )
 					{//passed normal jump height  *2?
@@ -1140,13 +1156,15 @@ static qboolean PM_CheckJump( void )
 				}
 				else
 				{
-					//pm->ps->velocity[2] = 0;
-					//rww - changed for the sake of balance in multiplayer
-
-					if ( pm->ps->velocity[2] > JUMP_VELOCITY )
-					{
-						pm->ps->velocity[2] = JUMP_VELOCITY;
-					}
+                    if(moveStyle == MOVEMENT_SP) {
+                        pm->ps->velocity[2] = 0;
+                        //rww - changed for the sake of balance in multiplayer
+                    } else {
+                        if ( pm->ps->velocity[2] > JUMP_VELOCITY )
+                        {
+                            pm->ps->velocity[2] = JUMP_VELOCITY;
+                        }
+                    }
 				}
 				//japro hold to jump start
 				if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump(pm) == qfalse)) 
@@ -1968,7 +1986,14 @@ static void PM_AirMove( void ) {
 			accel = PM_GetAirStrafeAccelerate(pm);
 		}
 	} //japro air control cap end
-	
+
+    if(pm->pmove_movement == MOVEMENT_SP){
+        if ( ( DotProduct (pm->ps->velocity, wishdir) ) < 0.0f )
+        {//Encourage deceleration away from the current velocity
+            wishspeed *= pm_sp_airDecelRate;
+        }
+    }
+
 	// not on ground, so little effect on velocity
 	PM_Accelerate (wishdir, wishspeed, accel);
 
@@ -1988,6 +2013,19 @@ static void PM_AirMove( void ) {
 		PM_ClipVelocity (pm->ps->velocity, pml.groundTrace.plane.normal, 
 			pm->ps->velocity, OVERCLIP );
 	}
+
+    if(pm->pmove_movement == MOVEMENT_SP) {
+        if (!pm->ps->clientNum
+            && pm->ps->fd.forcePowerLevel[FP_LEVITATION] > FORCE_LEVEL_0
+            && pm->ps->fd.forceJumpZStart
+            && pm->ps->velocity[2] > 0) {//I am force jumping and I'm not holding the button anymore
+            float curHeight = pm->ps->origin[2] - pm->ps->fd.forceJumpZStart + (pm->ps->velocity[2] * pml.frametime);
+            float maxJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];
+            if (curHeight >= maxJumpHeight) {//reached top, cut velocity
+                pm->ps->velocity[2] = 0;
+            }
+        }
+    }
 
 	PM_StepSlideMove ( qtrue );
 }
@@ -2388,7 +2426,7 @@ static void PM_WalkMove( void ) {
 
 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) || pm->ps->pm_flags & PMF_TIME_KNOCKBACK || moveStyle == MOVEMENT_SLICK || moveStyle == MOVEMENT_SLIDE && pm->ps->stats[STAT_EXTFLAGS] & EXTFL_SLIDING) //japro slick start
 	{
-		if (pm->pmove_float != 0) {
+		if (pm->pmove_float != 0 && pm->pmove_movement != MOVEMENT_SP) {
 			pm->ps->velocity[2] -= 800 * pml.frametime; //japro - Use 800 as gravity instead of 750 if pmove_float - fixes sliding down slick slopes like lappen
 		}
 		else {
@@ -2537,10 +2575,13 @@ static int PM_FootstepForSurface( void )
 
 static int PM_TryRoll( void )
 {
+    float rollDist = 64;
 	trace_t	trace;
 	int		anim = -1;
 	vec3_t fwd, right, traceto, mins, maxs, fwdAngles;
-
+    if(pm->pmove_movement == MOVEMENT_SP){
+        rollDist = 192;
+    }
 	if ( BG_SaberInAttack( pm->ps->saberMove ) || BG_SaberInSpecialAttack( pm->ps->torsoAnim ) 
 		|| BG_SpinningSaberAnim( pm->ps->legsAnim ) 
 		|| (jk2gameplay != VERSION_1_02 && PM_SaberInStart( pm->ps->saberMove )) ) // MVSDK: In 1.02 everyone except client 0 could roll during SaberInStart. In 1.03 and later nobody could roll during SaberInStart. 1.02 people consider client 0 being unable to roll as client 0 bug, so let him roll, too.
@@ -2567,23 +2608,23 @@ static int PM_TryRoll( void )
 		if ( pm->ps->pm_flags & PMF_BACKWARDS_RUN ) 
 		{
 			anim = BOTH_ROLL_B;
-			VectorMA( pm->ps->origin, -64, fwd, traceto );
+			VectorMA( pm->ps->origin, -rollDist, fwd, traceto );
 		}
 		else
 		{
 			anim = BOTH_ROLL_F;
-			VectorMA( pm->ps->origin, 64, fwd, traceto );
+			VectorMA( pm->ps->origin, rollDist, fwd, traceto );
 		}
 	}
 	else if ( pm->cmd.rightmove > 0 )
 	{ //right
 		anim = BOTH_ROLL_R;
-		VectorMA( pm->ps->origin, 64, right, traceto );
+		VectorMA( pm->ps->origin, rollDist, right, traceto );
 	}
 	else if ( pm->cmd.rightmove < 0 )
 	{ //left
 		anim = BOTH_ROLL_L;
-		VectorMA( pm->ps->origin, -64, right, traceto );
+		VectorMA( pm->ps->origin, -rollDist, right, traceto );
 	}
 
 	if ( anim != -1 )
@@ -4999,9 +5040,23 @@ void BG_AdjustClientSpeed(playerState_t *ps, usercmd_t *cmd, int svTime)
 				| BOTH_RUN1;
 		}
 	}
-	else if ( cmd->forwardmove < 0 && !(cmd->buttons&BUTTON_WALKING) && pm->ps->groundEntityNum != ENTITYNUM_NONE && jk2gameplay == VERSION_1_04 )
+	else if ( cmd->forwardmove < 0 && !(cmd->buttons&BUTTON_WALKING) && pm->ps->groundEntityNum != ENTITYNUM_NONE && (jk2gameplay == VERSION_1_04 || pm->pmove_movement == MOVEMENT_SP))
 	{//running backwards is slower than running forwards (like SP)
-		ps->speed *= 0.75;
+        if(pm->pmove_movement == MOVEMENT_SP){
+            switch(pm->ps->fd.saberAnimLevel){
+                case FORCE_LEVEL_1:
+                    ps->speed *= 0.75f;
+                    break;
+                case FORCE_LEVEL_2:
+                    ps->speed *= 0.60f;
+                    break;
+                case FORCE_LEVEL_3:
+                    ps->speed *= 0.45f;
+                    break;
+            }
+        } else {
+            ps->speed *= 0.75;
+        }
 	}
 
 	if (ps->fd.forcePowersActive & (1 << FP_GRIP) && jk2gameplay != VERSION_1_02)
@@ -5106,21 +5161,23 @@ void BG_AdjustClientSpeed(playerState_t *ps, usercmd_t *cmd, int svTime)
 
 	if ( BG_InRoll( ps, ps->legsAnim ) && ps->speed > 200 )
 	{ //can't roll unless you're able to move normally
-		BG_CmdForRoll( ps->legsAnim, cmd );
-		if ((ps->legsAnim&~ANIM_TOGGLEBIT) == BOTH_ROLL_B)
-		{ //backwards roll is pretty fast, should also be slower
-			ps->speed = ps->legsTimer/2.5;
-		}
-		else
-		{
-			ps->speed = ps->legsTimer/1.5;//450;
-		}
-		if (ps->speed > 600)
-		{
-			ps->speed = 600;
-		}
-		//Automatically slow down as the roll ends.
-	}
+        if(pm->pmove_movement != MOVEMENT_SP) {
+            BG_CmdForRoll(ps->legsAnim, cmd);
+
+            if ((ps->legsAnim & ~ANIM_TOGGLEBIT) ==
+                BOTH_ROLL_B) { //backwards roll is pretty fast, should also be slower
+                ps->speed = ps->legsTimer / 2.5;
+            } else {
+                ps->speed = ps->legsTimer / 1.5;//450;
+            }
+            if (ps->speed > 600) {
+                ps->speed = 600;
+            }
+            //Automatically slow down as the roll ends.
+        } else {
+            ps->speed = 200;
+        }
+    }
 }
 
 /*
@@ -5465,7 +5522,7 @@ void PmoveSingle (pmove_t *pmove) {
 	//To fix rocket wallbug, since that gets applied elsewhere, just always reset vel if origins dont match?
 	//japro Wallbug fix end
 
-	if (!(pm->pmove_float) || pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR) { //japro pmove_float and spectator snapping
+	if (!(pm->pmove_float) && pm->pmove_movement != MOVEMENT_SP || pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR) { //japro pmove_float and spectator snapping
 		trap_SnapVector(pm->ps->velocity);
 	}
 
