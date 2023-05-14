@@ -2385,7 +2385,7 @@ static void PM_WalkMove( void ) {
 	// when a player gets hit, they temporarily lose
 	// full control, which allows them to be moved a bit
 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) && (moveStyle != MOVEMENT_SLICK || pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) { //japro slick
-		accelerate = pm_airaccelerate;
+		accelerate = PM_GetAirAccelerate(pm);
 	} else {
 		accelerate = realAccelerate; //japro movement styles accelerate
 	}
