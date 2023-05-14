@@ -1334,6 +1334,9 @@ void ClientThink_real( gentity_t *ent ) {
 	pm.pmove_msec = g_pmove_msec.integer;
 	pm.pmove_float = g_pmove_float.integer;         //japro pmove float cvar
 	pm.pmove_movement = g_movement.integer;         //japro/ratmod/dfmania movement cvar
+    if(pm.pmove_movement < 0 || pm.pmove_movement >= MOVEMENT_NUM_MOVEMENTS) {
+        pm.pmove_movement = 0;
+    }
 	pm.pmove_autoJump = g_autoJump.integer;         //japro autojump cvar
 	pm.pmove_stepSlideFix = g_stepSlideFix.integer; //japro/jka stepSlideFix cvar
     pm.pmove_upCmdScale = g_upCmdScale.integer;       //japro holding jump reducing accel
