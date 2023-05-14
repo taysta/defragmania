@@ -792,7 +792,7 @@ static cvarTable_t cvarTable[] = { // bk001129
 	{ &cg_speedometerSize, "cg_speedometerSize", "0.75", CVAR_ARCHIVE},
 	{ &cg_jumpGoal, "cg_jumpGoal", "0", 0},
 
-	{ &cg_strafeHelper, "cg_strafeHelper", "0", CVAR_ARCHIVE },
+	{ &cg_strafeHelper, "cg_strafeHelper", "139232", CVAR_ARCHIVE },
 	{ &cg_strafeHelper_FPS, "cg_strafeHelper_FPS", "1000", CVAR_ARCHIVE },
 	{ &cg_strafeHelperOffset, "cg_strafeHelperOffset", "0", CVAR_ARCHIVE },
 	{ &cg_strafeHelperLineWidth, "cg_strafeHelperLineWidth", "1", CVAR_ARCHIVE },
