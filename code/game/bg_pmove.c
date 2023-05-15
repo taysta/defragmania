@@ -26,7 +26,6 @@ const float	pm_wadeScale = 0.70f;
 
 const float	pm_accelerate = 10.0f;
 const float	pm_airaccelerate = 1.0f;
-const float	pm_duckaccelerate = 10.0f; //ratmod crouch slide
 const float	pm_wateraccelerate = 4.0f;
 const float	pm_flyaccelerate = 8.0f;
 
@@ -272,12 +271,12 @@ float forceJumpStrength[NUM_FORCE_POWER_LEVELS] =
 };
 
 //ratmod/dfmania movement style get functions start
-static int PM_GetMovePhysics(pmove_t* pm) {
+static int PM_GetMovePhysics() {
 	return pm->pmove_movement;
 }
 
-static qboolean PM_HasAirControl(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static qboolean PM_HasAirControl() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
@@ -289,8 +288,8 @@ static qboolean PM_HasAirControl(pmove_t* pm) {
 	}
 }
 
-static qboolean PM_HasForceJumps(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static qboolean PM_HasForceJumps() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_JK2:
 	case MOVEMENT_PJK:
 	case MOVEMENT_QW:
@@ -303,8 +302,8 @@ static qboolean PM_HasForceJumps(pmove_t* pm) {
 	}
 }
 
-static qboolean PM_HasAutoJump(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static qboolean PM_HasAutoJump() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_JK2:
 	case MOVEMENT_SPEED:
     case MOVEMENT_SP:
@@ -315,8 +314,8 @@ static qboolean PM_HasAutoJump(pmove_t* pm) {
 	}
 }
 
-static float PM_GetAccelerate(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetAccelerate() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 		return pm_cpm_accelerate;
@@ -334,8 +333,8 @@ static float PM_GetAccelerate(pmove_t* pm) {
 	}
 }
 
-static float PM_GetAirAccelerate(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetAirAccelerate() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
@@ -350,8 +349,8 @@ static float PM_GetAirAccelerate(pmove_t* pm) {
 	}
 }
 
-static float PM_GetAirStrafeAccelerate(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetAirStrafeAccelerate() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
@@ -367,8 +366,8 @@ static float PM_GetAirStrafeAccelerate(pmove_t* pm) {
 	}
 }
 
-static float PM_GetAirStopAccelerate(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetAirStopAccelerate() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
@@ -379,8 +378,8 @@ static float PM_GetAirStopAccelerate(pmove_t* pm) {
 	}
 }
 
-static float PM_GetAirStrafeWishspeed(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetAirStrafeWishspeed() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_PJK:
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
@@ -390,8 +389,8 @@ static float PM_GetAirStrafeWishspeed(pmove_t* pm) {
 	}
 }
 
-static float PM_GetFriction(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetFriction() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_CPMA:
 	case MOVEMENT_WSW:
 	case MOVEMENT_SLICK:
@@ -402,8 +401,8 @@ static float PM_GetFriction(pmove_t* pm) {
 	}
 }
 
-static float PM_GetDuckScale(pmove_t* pm) {
-	switch (PM_GetMovePhysics(pm)) {
+static float PM_GetDuckScale() {
+	switch (PM_GetMovePhysics()) {
 	case MOVEMENT_VQ3:
 		return pm_vq3_duckScale;
 		break;
@@ -527,8 +526,8 @@ static void PM_Friction( void ) {
 	float	speed, newspeed, control;
 	float	drop;
 	//japro movement styles friction start
-	const int moveStyle = PM_GetMovePhysics(pm);
-	float realFriction = PM_GetFriction(pm);
+	const int moveStyle = PM_GetMovePhysics();
+	float realFriction = PM_GetFriction();
 	//japro movement styles friction end
 	vel = pm->ps->velocity;
 	
@@ -742,7 +741,7 @@ qboolean PM_ForceJumpingUp(void)
 		return qfalse;
 	}
 	//japro restrict force jumps start
-	if (PM_HasForceJumps(pm) == qfalse) {
+	if (PM_HasForceJumps() == qfalse) {
 		return qfalse;
 	} //japro restrict force jumps end
 
@@ -919,7 +918,7 @@ PM_CheckJump
 */
 static qboolean PM_CheckJump( void ) 
 {
-	const int moveStyle = PM_GetMovePhysics(pm); //japro/dfmania movement styles
+	const int moveStyle = PM_GetMovePhysics(); //japro/dfmania movement styles
 	if (pm->ps->usingATST)
 	{
 		return qfalse;
@@ -1133,7 +1132,7 @@ static qboolean PM_CheckJump( void )
 
 					//japro forcejump rampjump start
 					if ((moveStyle == MOVEMENT_PJK) || (moveStyle == MOVEMENT_QW)) {
-						float realForceJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] * (pm->ps->stats[STAT_LASTJUMPSPEED] / (float)JUMP_VELOCITY);
+						realForceJumpHeight = forceJumpHeight[pm->ps->fd.forcePowerLevel[FP_LEVITATION]] * (pm->ps->stats[STAT_LASTJUMPSPEED] / (float)JUMP_VELOCITY);
 
 						pm->ps->velocity[2] = (realForceJumpHeight - curHeight) / realForceJumpHeight * forceJumpStrength[pm->ps->fd.forcePowerLevel[FP_LEVITATION]];
 						pm->ps->velocity[2] /= 10;
@@ -1167,7 +1166,7 @@ static qboolean PM_CheckJump( void )
                     }
 				}
 				//japro hold to jump start
-				if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump(pm) == qfalse)) 
+				if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump() == qfalse))
 				{
 					pm->cmd.upmove = 0; // change this to allow hold to jump?
 					return qfalse;
@@ -1201,7 +1200,7 @@ static qboolean PM_CheckJump( void )
 	if ( pm->ps->pm_flags & PMF_JUMP_HELD ) 
 	{
 		// clear upmove so cmdscale doesn't lower running speed
-		if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump(pm) == qfalse)) //japro hold to jump
+		if ((pm->pmove_autoJump == 0) || (PM_HasAutoJump() == qfalse)) //japro hold to jump
 		{
 			pm->cmd.upmove = 0;
 			return qfalse;
@@ -1229,7 +1228,7 @@ static qboolean PM_CheckJump( void )
 		!(pm->ps->pm_flags&PMF_JUMP_HELD) &&
 		pm->ps->weapon == WP_SABER &&
 		!BG_HasYsalamiri(pm->gametype, pm->ps) &&
-		(PM_HasForceJumps(pm) == qtrue)	&& /*japro forcejump restricted styles*/
+		(PM_HasForceJumps() == qtrue)	&& /*japro forcejump restricted styles*/
 		BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION) )
 	{
 		if ( pm->ps->groundEntityNum != ENTITYNUM_NONE )
@@ -1572,7 +1571,7 @@ static qboolean PM_CheckJump( void )
 	if ( pm->cmd.upmove > 0 )
 	{//no special jumps
 		//japro rampjump/doublejump start
-		if (PM_HasAutoJump(pm) == qtrue)
+		if (PM_HasAutoJump() == qtrue)
 		{
 			vec3_t hVel;
 			float added, xyspeed, realjumpvelocity = JUMP_VELOCITY;
@@ -1595,10 +1594,8 @@ static qboolean PM_CheckJump( void )
 			//Dont apply if added is quite small (prevent circlejump rampjump?)
 
 			if (added > 0) {
-				if (moveStyle == MOVEMENT_PJK || moveStyle == MOVEMENT_QW)
-					pm->ps->velocity[2] += (added * 0.75f); //Forcejump rampjump initial upspeed
-				else if ((moveStyle == MOVEMENT_WSW))
-					pm->ps->velocity[2] += (added * 0.75f);//Make rampjump weaker for wsw since no speedloss
+				if (moveStyle == MOVEMENT_PJK || moveStyle == MOVEMENT_QW || moveStyle == MOVEMENT_WSW)
+					pm->ps->velocity[2] += (added * 0.75f); //Forcejump rampjump initial upspeed, Make rampjump weaker for wsw since no speedloss
 				else
 					pm->ps->velocity[2] += (added * 1.25f); //Make rampjump stronger for cpm/q3/slick
 			}
@@ -1863,7 +1860,7 @@ ratmod - Copied with edits from cl_input.c from Xonotic's Darkplaces engine, whi
 covered under the GPLv2+ license.
 ==================
 */
-static void PM_CPM_Aircontrol(pmove_t *pm, vec3_t wishdir, vec_t wishspeed)
+static void PM_CPM_Aircontrol( vec3_t wishdir, vec_t wishspeed )
 {
 	vec_t zspeed, speed, dot, k;
 
@@ -1871,7 +1868,7 @@ static void PM_CPM_Aircontrol(pmove_t *pm, vec3_t wishdir, vec_t wishspeed)
 	if(pm->cmd.forwardmove == 0 || pm->cmd.rightmove != 0)
 		return;
 	k = 32;
-	k *= Com_Clamp(0, 1, wishspeed / PM_GetAirStrafeWishspeed(pm));
+	k *= Com_Clamp(0, 1, wishspeed / PM_GetAirStrafeWishspeed());
 
 	zspeed = pm->ps->velocity[2];
 	pm->ps->velocity[2] = 0;
@@ -1905,7 +1902,7 @@ static void PM_AirMove( void ) {
 	float		wishspeed, wishspeed2;
 	float		scale;
 	usercmd_t	cmd;
-	float		accel = PM_GetAirAccelerate(pm); //ratmod cpma
+	float		accel = PM_GetAirAccelerate(); //ratmod cpma
 	vec3_t		curdir; //ratmod cpma
 	float		dot; //ratmod cpma
 	if (pm->ps->pm_type != PM_SPECTATOR)
@@ -1967,23 +1964,23 @@ static void PM_AirMove( void ) {
 	//ratmod cpma start
 	wishspeed2 = wishspeed;
 	// begin Xonotic Darkplaces Air Control
-	if(PM_HasAirControl(pm) == qtrue){
+	if(PM_HasAirControl() == qtrue){
 		curdir[0] = pm->ps->velocity[0];
 		curdir[1] = pm->ps->velocity[1];
 		curdir[2] = 0;
 		VectorNormalize(curdir);
-		if (PM_GetAirStopAccelerate(pm)) {
+		if (PM_GetAirStopAccelerate()) {
 			dot = -DotProduct(curdir, wishdir);
-			accel = accel + (PM_GetAirStopAccelerate(pm) - accel) * (dot > 0 ? dot : 0);
+			accel = accel + (PM_GetAirStopAccelerate() - accel) * (dot > 0 ? dot : 0);
 		}
 	}
 	// end ratmod/Xonotic Darkplaces Air Control
 
 	//japro air control cap start
-	if ((fmove == 0 && smove != 0) && (PM_HasAirControl(pm) == qtrue)) {
+	if ((fmove == 0 && smove != 0) && (PM_HasAirControl() == qtrue)) {
 		if (wishspeed > pm_cpm_airstrafewishspeed){
-			wishspeed = PM_GetAirStrafeWishspeed(pm);
-			accel = PM_GetAirStrafeAccelerate(pm);
+			wishspeed = PM_GetAirStrafeWishspeed();
+			accel = PM_GetAirStrafeAccelerate();
 		}
 	} //japro air control cap end
 
@@ -1997,12 +1994,12 @@ static void PM_AirMove( void ) {
 	// not on ground, so little effect on velocity
 	PM_Accelerate (wishdir, wishspeed, accel);
 
-	if (PM_GetMovePhysics(pm) == MOVEMENT_QW)
+	if (PM_GetMovePhysics() == MOVEMENT_QW)
 		PM_QW_AirAccelerate(wishdir, wishspeed, pm_qw_airaccelerate); //japro QW
 
 	// begin ratmod/Xonotic Darkplaces Air Control
-	if(PM_HasAirControl(pm) == qtrue){
-		PM_CPM_Aircontrol(pm, wishdir, wishspeed2);
+	if(PM_HasAirControl() == qtrue){
+		PM_CPM_Aircontrol(wishdir, wishspeed2);
 	}
 	// end ratmod/Xonotic Darkplaces Air Control
 
@@ -2090,7 +2087,7 @@ static void PM_CheckDash(void)
 	if (pm->ps->weaponTime > 0)
 		return;
 
-	if (PM_GetMovePhysics(pm) != MOVEMENT_WSW)
+	if (PM_GetMovePhysics() != MOVEMENT_WSW)
 		return;
 
 	if (pm->ps->stats[STAT_DASHTIME] > 0)
@@ -2200,7 +2197,7 @@ static void PM_CheckWallJump(void)
 	if (pm->ps->weaponTime > 0)
 		return;
 
-	if (PM_GetMovePhysics(pm) != MOVEMENT_WSW)
+	if (PM_GetMovePhysics() != MOVEMENT_WSW)
 		return;
 
 	if (pm->ps->stats[STAT_WJTIME] > 0)
@@ -2276,9 +2273,9 @@ static void PM_WalkMove( void ) {
 	float		totalVel;
 
 	//japro movement styles duckscale/accelerate start
-	const int moveStyle = PM_GetMovePhysics(pm);
-	float realDuckScale = PM_GetDuckScale(pm);
-	float realAccelerate = PM_GetAccelerate(pm);
+	const int moveStyle = PM_GetMovePhysics();
+	float realDuckScale = PM_GetDuckScale();
+	float realAccelerate = PM_GetAccelerate();
 	//japro movement styles duckscale/accelerate end
 	if (pm->ps->velocity[0] < 0)
 	{
@@ -2385,7 +2382,7 @@ static void PM_WalkMove( void ) {
 	// when a player gets hit, they temporarily lose
 	// full control, which allows them to be moved a bit
 	if ( ( pml.groundTrace.surfaceFlags & SURF_SLICK ) && (moveStyle != MOVEMENT_SLICK || pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ) { //japro slick
-		accelerate = PM_GetAirAccelerate(pm);
+		accelerate = PM_GetAirAccelerate();
 	} else {
 		accelerate = realAccelerate; //japro movement styles accelerate
 	}
@@ -2589,7 +2586,7 @@ static int PM_TryRoll( void )
 	}
 
 	if (pm->ps->weapon != WP_SABER || BG_HasYsalamiri(pm->gametype, pm->ps) ||
-		(PM_HasForceJumps(pm) == qfalse) || /*japro forcejump restricted styles */
+		(PM_HasForceJumps() == qfalse) || /*japro forcejump restricted styles */
         !BG_CanUseFPNow(pm->gametype, pm->ps, pm->cmd.serverTime, FP_LEVITATION))
 	{ //Not using saber, or can't use jump
 		return 0;
@@ -2849,7 +2846,7 @@ static void PM_CrashLand( void ) {
 	pm->ps->velocity[2] = 0;
 
 	//japro overbounce start  - only styles without force jumps can OB
-	if ((PM_HasForceJumps(pm) != qtrue) && ((int)pm->ps->fd.forceJumpZStart > pm->ps->origin[2] + 1)) {
+	if ((PM_HasForceJumps() != qtrue) && ((int)pm->ps->fd.forceJumpZStart > pm->ps->origin[2] + 1)) {
 		if (1 > (sqrt(pm->ps->velocity[0] * pm->ps->velocity[0] + pm->ps->velocity[1] * pm->ps->velocity[1])))//No xyvel
 			pm->ps->velocity[2] = -vel;
 	} //japro overbounce finish - only styles without force jumps can OB
@@ -3087,7 +3084,7 @@ static void PM_GroundTrace( void ) {
 
 		if (trace.plane.normal[0] != 0.0f || trace.plane.normal[1] != 0.0f || trace.plane.normal[2] != 1.0f) { //Its actually a ramp
 			if (!pml.clipped) {
-				int moveStyle = PM_GetMovePhysics(pm);
+				int moveStyle = PM_GetMovePhysics();
 				if (moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_SLICK) { //Only change our xy speed if we hit a downramp in wsw
 					vec3_t oldVel, clipped_velocity, newVel;
 					float oldSpeed, newSpeed;
@@ -3178,6 +3175,8 @@ Sets mins, maxs, and pm->ps->viewheight
 */
 static void PM_CheckDuck (void)
 {
+    trace_t trace, sptrace;
+
     int crouchheight = CROUCH_MAXS_2;
     int standheight = DEFAULT_MAXS_2;
 	//trace_t	trace;
@@ -3218,7 +3217,6 @@ static void PM_CheckDuck (void)
 	}
 	else if (pm->ps->pm_flags & PMF_ROLLING)
 	{
-        trace_t trace;
 		// try to stand up
 		pm->maxs[2] = DEFAULT_MAXS_2;
 		pm->trace (&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask );
@@ -3230,7 +3228,6 @@ static void PM_CheckDuck (void)
 	{	// duck
         //half-life/jasp crouch climb thing
         if (pm->ps->groundEntityNum == ENTITYNUM_NONE && pm->pmove_movement == MOVEMENT_SP) {
-            trace_t sptrace;
             pm->maxs[2] = crouchheight;
             pm->ps->viewheight = crouchheight + STANDARD_VIEWHEIGHT_OFFSET; //CROUCH_VIEWHEIGHT
             pm->trace(&sptrace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
@@ -3246,10 +3243,8 @@ static void PM_CheckDuck (void)
 	{	// stand up if possible 
 		if (pm->ps->pm_flags & PMF_DUCKED)
 		{
-            trace_t sptrace;
             //half-life/jasp crouch climb thing
             if (pm->pmove_movement == MOVEMENT_SP) {
-                trace_t sptrace;
                 if (pm->ps->groundEntityNum == ENTITYNUM_NONE && PM_GroundDistance() >= (oldHeight - pm->maxs[2]) && pm->ps->velocity[2] >= 0) {
                     pm->maxs[2] = standheight;
                     pm->ps->origin[2] += oldHeight - pm->maxs[2];
@@ -3270,7 +3265,6 @@ static void PM_CheckDuck (void)
                     }
                 }
             } else if (pm->ps->pm_flags & PMF_DUCKED) {
-                trace_t trace;
                 // try to stand up
                 pm->maxs[2] = DEFAULT_MAXS_2;
                 pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
