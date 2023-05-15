@@ -3179,7 +3179,10 @@ Sets mins, maxs, and pm->ps->viewheight
 */
 static void PM_CheckDuck (void)
 {
-	trace_t	trace;
+    int crouchheight = CROUCH_MAXS_2;
+    int standheight = DEFAULT_MAXS_2;
+	//trace_t	trace;
+    int oldHeight;
 
 	pm->mins[0] = -15;
 	pm->mins[1] = -15;
@@ -3204,6 +3207,8 @@ static void PM_CheckDuck (void)
 		}
 	}
 
+    oldHeight = pm->maxs[2];
+
 	if (BG_InRoll(pm->ps, pm->ps->legsAnim))
 	{
 		pm->maxs[2] = CROUCH_MAXS_2;
@@ -3214,6 +3219,7 @@ static void PM_CheckDuck (void)
 	}
 	else if (pm->ps->pm_flags & PMF_ROLLING)
 	{
+        trace_t trace;
 		// try to stand up
 		pm->maxs[2] = DEFAULT_MAXS_2;
 		pm->trace (&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask );
@@ -3223,21 +3229,59 @@ static void PM_CheckDuck (void)
 	else if (pm->cmd.upmove < 0 ||
 		pm->ps->forceHandExtend == HANDEXTEND_KNOCKDOWN)
 	{	// duck
+        //half-life/jasp crouch climb thing
+        if (pm->ps->groundEntityNum == ENTITYNUM_NONE && pm->pmove_movement == MOVEMENT_SP) {
+            trace_t sptrace;
+            pm->maxs[2] = crouchheight;
+            pm->ps->viewheight = crouchheight + STANDARD_VIEWHEIGHT_OFFSET; //CROUCH_VIEWHEIGHT
+            pm->trace(&sptrace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
+            if (!(pm->ps->pm_flags & PMF_DUCKED) && !sptrace.allsolid && pm->ps->velocity[2] >= 0) {
+                pm->ps->eFlags ^= EF_TELEPORT_BIT;
+                pm->ps->origin[2] -= oldHeight - pm->maxs[2];
+            }
+
+        }
 		pm->ps->pm_flags |= PMF_DUCKED;
 	}
 	else
 	{	// stand up if possible 
 		if (pm->ps->pm_flags & PMF_DUCKED)
 		{
-			// try to stand up
-			pm->maxs[2] = DEFAULT_MAXS_2;
-			pm->trace (&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask );
-			if (!trace.allsolid) {
-				pm->ps->pm_flags &= ~PMF_DUCKED;
-				if (pm->pmove_movement == MOVEMENT_SLIDE) { //ratmod crouchslide
-					pm->ps->stats[STAT_SLIDETIMEOUT] = pm_slide_crouchgracetime;
-				}
-			}
+            trace_t sptrace;
+            //half-life/jasp crouch climb thing
+            if (pm->pmove_movement == MOVEMENT_SP) {
+                trace_t sptrace;
+                if (pm->ps->groundEntityNum == ENTITYNUM_NONE && PM_GroundDistance() >= (oldHeight - pm->maxs[2]) && pm->ps->velocity[2] >= 0) {
+                    pm->maxs[2] = standheight;
+                    pm->ps->origin[2] += oldHeight - pm->maxs[2];
+                    pm->trace(&sptrace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
+                    if (!sptrace.allsolid) {
+                        pm->ps->eFlags ^= EF_TELEPORT_BIT;
+                        pm->ps->pm_flags &= ~PMF_DUCKED;
+                    }
+                    else {
+                        pm->ps->origin[2] -= oldHeight - pm->maxs[2]; //undo it so we don't clip thru the floor
+                    }
+                }
+                else {
+                    pm->maxs[2] = standheight;
+                    pm->trace(&sptrace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
+                    if (!sptrace.allsolid) {
+                        pm->ps->pm_flags &= ~PMF_DUCKED;
+                    }
+                }
+            } else if (pm->ps->pm_flags & PMF_DUCKED) {
+                trace_t trace;
+                // try to stand up
+                pm->maxs[2] = DEFAULT_MAXS_2;
+                pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin, pm->ps->clientNum, pm->tracemask);
+                if (!trace.allsolid) {
+                    pm->ps->pm_flags &= ~PMF_DUCKED;
+                    if (pm->pmove_movement == MOVEMENT_SLIDE) { //ratmod crouchslide
+                        pm->ps->stats[STAT_SLIDETIMEOUT] = pm_slide_crouchgracetime;
+                    }
+                }
+            }
 		}
 	}
 
