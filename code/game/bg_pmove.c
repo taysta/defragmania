@@ -652,7 +652,7 @@ static float PM_CmdScale( usercmd_t *cmd ) {
 	int		umove = 0; //cmd->upmove;
 			//don't factor upmove into scaling speed
 
-    if(pm->pmove_upCmdScale){ //japro g_noCmdScale (scale accel down while holding jump)
+    if(pm->pmove_upCmdScale && pm->pmove_movement != MOVEMENT_SP){ //japro g_noCmdScale (scale accel down while holding jump)
         umove = cmd->upmove;
     }
 	max = abs( cmd->forwardmove );
@@ -2361,7 +2361,7 @@ static void PM_WalkMove( void ) {
 		}
 	}
 	else if ( (pm->ps->pm_flags & PMF_ROLLING) && !BG_InRoll(pm->ps, pm->ps->legsAnim) &&
-		!PM_InRollComplete(pm->ps, pm->ps->legsAnim))
+		!PM_InRollComplete(pm->ps, pm->ps->legsAnim) && moveStyle != MOVEMENT_SP)
 	{
 		if ( wishspeed > pm->ps->speed * realDuckScale) { //japro movement styles duck scale
 			wishspeed = pm->ps->speed * realDuckScale;
@@ -2428,8 +2428,7 @@ static void PM_WalkMove( void ) {
 	{
 		if (pm->pmove_float != 0 && pm->pmove_movement != MOVEMENT_SP) {
 			pm->ps->velocity[2] -= 800 * pml.frametime; //japro - Use 800 as gravity instead of 750 if pmove_float - fixes sliding down slick slopes like lappen
-		}
-		else {
+		} else if (!((moveStyle == MOVEMENT_SP) && pm->ps->gravity >= 0 && pm->ps->groundEntityNum != ENTITYNUM_NONE && !VectorLengthSquared( pm->ps->velocity ) && pml.groundTrace.plane.normal[2] == 1.0 )) { //on ground and not moving and on level ground, no reason to do stupid fucking gravity with the clipvelocity!!!! (actual comment from SP source)
 			pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
 		}
 	}
@@ -5086,21 +5085,7 @@ void BG_AdjustClientSpeed(playerState_t *ps, usercmd_t *cmd, int svTime)
 	}
 	else if ( cmd->forwardmove < 0 && !(cmd->buttons&BUTTON_WALKING) && pm->ps->groundEntityNum != ENTITYNUM_NONE && (jk2gameplay == VERSION_1_04 || pm->pmove_movement == MOVEMENT_SP))
 	{//running backwards is slower than running forwards (like SP)
-        if(pm->pmove_movement == MOVEMENT_SP){
-            switch(pm->ps->fd.saberAnimLevel){
-                case FORCE_LEVEL_1:
-                    ps->speed *= 0.75f;
-                    break;
-                case FORCE_LEVEL_2:
-                    ps->speed *= 0.60f;
-                    break;
-                case FORCE_LEVEL_3:
-                    ps->speed *= 0.45f;
-                    break;
-            }
-        } else {
-            ps->speed *= 0.75;
-        }
+        ps->speed *= 0.75;
 	}
 
 	if (ps->fd.forcePowersActive & (1 << FP_GRIP) && jk2gameplay != VERSION_1_02)
@@ -5190,7 +5175,7 @@ void BG_AdjustClientSpeed(playerState_t *ps, usercmd_t *cmd, int svTime)
 		}
 	}
 	else if (ps->weapon == WP_SABER && ps->fd.saberAnimLevel == FORCE_LEVEL_3 &&
-		PM_SaberInTransition(ps->saberMove) && jk2gameplay != VERSION_1_02)
+		PM_SaberInTransition(ps->saberMove) && jk2gameplay != VERSION_1_02 && pm->pmove_movement != MOVEMENT_SP)
 	{ //Now, we want to even slow down in transitions for level 3 (since it has chains and stuff now)
 		if (cmd->forwardmove < 0)
 		{
@@ -5203,24 +5188,23 @@ void BG_AdjustClientSpeed(playerState_t *ps, usercmd_t *cmd, int svTime)
 	}
 
 
-	if ( BG_InRoll( ps, ps->legsAnim ) && ps->speed > 200 )
+	if ( BG_InRoll( ps, ps->legsAnim ) && ps->speed > 200 && pm->pmove_movement != MOVEMENT_SP)
 	{ //can't roll unless you're able to move normally
-        if(pm->pmove_movement != MOVEMENT_SP) {
-            BG_CmdForRoll(ps->legsAnim, cmd);
+        BG_CmdForRoll(ps->legsAnim, cmd);
 
-            if ((ps->legsAnim & ~ANIM_TOGGLEBIT) ==
-                BOTH_ROLL_B) { //backwards roll is pretty fast, should also be slower
-                ps->speed = ps->legsTimer / 2.5;
-            } else {
-                ps->speed = ps->legsTimer / 1.5;//450;
-            }
-            if (ps->speed > 600) {
-                ps->speed = 600;
-            }
-            //Automatically slow down as the roll ends.
+        if ((ps->legsAnim & ~ANIM_TOGGLEBIT) ==
+            BOTH_ROLL_B) { //backwards roll is pretty fast, should also be slower
+            ps->speed = ps->legsTimer / 2.5;
         } else {
-            ps->speed = 200;
+            ps->speed = ps->legsTimer / 1.5;//450;
         }
+        if (ps->speed > 600) {
+            ps->speed = 600;
+        }
+        //Automatically slow down as the roll ends.
+    } else if (BG_InRoll( ps, ps->legsAnim) && pm->pmove_movement == MOVEMENT_SP) {
+        BG_CmdForRoll(ps->legsAnim, cmd);
+        ps->speed = 200;
     }
 }
 
