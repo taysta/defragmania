@@ -5351,7 +5351,7 @@ static float CG_CmdScale( usercmd_t *cmd ) {
     int		umove = 0; //cmd->upmove;
     //don't factor upmove into scaling speed
 
-    if(pm->pmove_upCmdScale){ //japro g_noCmdScale (scale accel down while holding jump)
+    if(pm->pmove_upCmdScale || pm->pmove_movement == MOVEMENT_SP){ //upmove velocity scaling
         umove = cmd->upmove;
     }
     max = abs( cmd->forwardmove );
@@ -5373,11 +5373,11 @@ static float CG_CmdScale( usercmd_t *cmd ) {
 }
 
 static void CG_GetWishspeed(){
-    int i;
+    int         i;
     vec3_t		wishvel;
     float		fmove, smove;
-    vec3_t		wishdir, forward, right, up;
-    float		wishspeed, wishspeed2;
+    vec3_t		forward, right, up;
+    float		wishspeed;
     float		scale;
     usercmd_t	cmd;
 
@@ -5400,8 +5400,18 @@ static void CG_GetWishspeed(){
     }
     wishvel[2] = 0;
     VectorCopy (wishvel, cg.wishdir);
-    wishspeed = VectorNormalize(wishdir);
-    wishspeed *= scale;
+    wishspeed = VectorNormalize(cg.wishdir);
+    if(pm->pmove_movement != MOVEMENT_SP) {
+        wishspeed *= scale;
+    }else if(pm->pmove_movement == MOVEMENT_SP) { //SP - Encourage deceleration away from the current velocity when in the air
+        if(!((qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD)) && (DotProduct (pm->ps->velocity, cg.wishdir) < 0.0f)) {
+            wishspeed *= 1.35;
+        }
+        if((qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD)) //SP no cmdscale in air - should be applying scale on ground, making lines bounce on landings?
+        {
+            wishspeed *= scale;
+        }
+    }
 
     cg.wishspeed = wishspeed;
 }
@@ -5473,17 +5483,14 @@ static void CG_StrafeHelper(centity_t* cent) {
         pmAccel = 12.0f;
         pmAirAccel = 4.0f;
     }
+    if(pm->pmove_upCmdScale || moveStyle == MOVEMENT_SP){
+        CG_GetWishspeed();
+        baseSpeed = cg.wishspeed;
+    }
 
 	if (currentSpeed < (baseSpeed - 1))
 		return;
 
-    if ( pm->pmove_movement == MOVEMENT_SP) {
-        CG_GetWishspeed();
-        if ( DotProduct (pm->ps->velocity, cg.wishdir) < 0.0f )
-        {//Encourage deceleration away from the current velocity
-            baseSpeed *= 1.35;
-        }
-    }
 	if (cg_strafeHelper_FPS.value < 1)
 		frametime = ((float)cg.frametime * 0.001f);
 	else if (cg_strafeHelper_FPS.value > 1000)
@@ -5513,11 +5520,21 @@ static void CG_StrafeHelper(centity_t* cent) {
 	}
 
 	if (moveStyle != MOVEMENT_QW) { //Every style but QW has WA/WD lines
-		if (cg_strafeHelper.integer & SHELPER_WA) //WA forwards
-			CG_DrawStrafeLine(velocityAngle, (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove < 0), 1); //WA
-		if (cg_strafeHelper.integer & SHELPER_WD) //WD forwards
-			CG_DrawStrafeLine(velocityAngle, -(optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)), (qboolean)(cmd.forwardmove > 0 && cmd.rightmove > 0), 7); //WD
-
+        if((qboolean)(cmd.forwardmove > 0 && cmd.rightmove < 0)){ //SP - draw the active line on top so it is the correct colour
+            if (cg_strafeHelper.integer & SHELPER_WD) //WD forwards
+                CG_DrawStrafeLine(velocityAngle, -(optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)),
+                                  (qboolean) (cmd.forwardmove > 0 && cmd.rightmove > 0), 7); //WD
+            if (cg_strafeHelper.integer & SHELPER_WA) //WA forwards
+                CG_DrawStrafeLine(velocityAngle, (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)),
+                                  (qboolean) (cmd.forwardmove > 0 && cmd.rightmove < 0), 1); //WA
+        } else if((cmd.forwardmove > 0 && cmd.rightmove > 0)) { //SP - draw the active line on top so it is the correct colour
+            if (cg_strafeHelper.integer & SHELPER_WA) //WA forwards
+                CG_DrawStrafeLine(velocityAngle, (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)),
+                                  (qboolean) (cmd.forwardmove > 0 && cmd.rightmove < 0), 1); //WA
+            if (cg_strafeHelper.integer & SHELPER_WD) //WD forwards
+                CG_DrawStrafeLine(velocityAngle, -(optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f)),
+                                  (qboolean) (cmd.forwardmove > 0 && cmd.rightmove > 0), 7); //WD
+        }
 		if (cg_strafeHelper.integer & SHELPER_REAR) { //SA/SD backwards
 			if (cg_strafeHelper.integer & SHELPER_SA)
 				CG_DrawStrafeLine(velocityAngle, (180.0f - (optimalDeltaAngle + (cg_strafeHelperOffset.value * 0.01f))), (qboolean)(cmd.forwardmove < 0 && cmd.rightmove < 0), 3); //SA
