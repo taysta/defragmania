@@ -22,7 +22,7 @@ static void CG_StrafeHelperSound(float difference);
 static void CG_DrawStrafeLine(vec3_t velocity, float diff, qboolean active, int moveDir);
 static int	CG_GetStrafeTriangleAccel(void);
 static float* CG_GetStrafeTriangleStrafeX(vec3_t velocity, float diff, float sensitivity);
-static void CG_DrawStrafeTriangles(vec3_t velocity, float diff, float baseSpeed, int moveDir);
+static void CG_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir);
 qboolean	CG_InRollAnim(centity_t* cent);
 static void CG_StrafeHelper(centity_t* cent);
 //movementkeys functions
@@ -5285,13 +5285,13 @@ CG_DrawStrafeTriangles
 japro - draws the strafe triangles
 ===================
 */
-static void CG_DrawStrafeTriangles(vec3_t velocity, float diff, float baseSpeed, int moveDir) {
+static void CG_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir) {
 	float lx, lx2, rx, rx2, lineWidth, sensitivity, accel, optimalAccel, potentialSpeed;
 	static float lWidth, rWidth, width;
 	vec4_t color1 = { 1.0f, 1.0f, 1.0f, 0.8f };
 
 	accel = (float)CG_GetStrafeTriangleAccel();
-	optimalAccel = baseSpeed * ((float)cg.frametime / 1000.0f);
+	optimalAccel = wishspeed * ((float)cg.frametime / 1000.0f);
 	potentialSpeed = cg.previousSpeed * cg.previousSpeed - optimalAccel * optimalAccel + 2.0f * (250.0f * optimalAccel);
 
 	if (80.0f < ((float)sqrt(accel / potentialSpeed)) * 10.0f) { //good strafe = green
@@ -5351,7 +5351,7 @@ static float CG_CmdScale( usercmd_t *cmd ) {
     int		umove = 0; //cmd->upmove;
     //don't factor upmove into scaling speed
 
-    if(pm->pmove_upCmdScale || pm->pmove_movement == MOVEMENT_SP){ //upmove velocity scaling
+    if(cgs.upCmdScale || cgs.movement == MOVEMENT_SP){ //upmove velocity scaling
         umove = cmd->upmove;
     }
     max = abs( cmd->forwardmove );
@@ -5367,25 +5367,23 @@ static float CG_CmdScale( usercmd_t *cmd ) {
 
     total = sqrt( cmd->forwardmove * cmd->forwardmove
                   + cmd->rightmove * cmd->rightmove + umove * umove );
-    scale = (float)pm->ps->speed * max / ( 127.0 * total );
+    scale = (float)cg.currentSpeed * max / ( 127.0 * total );
 
     return scale;
 }
 
-static void CG_GetWishspeed(){
+static float CG_GetWishspeed( usercmd_t *cmd){
     int         i;
     vec3_t		wishvel;
     float		fmove, smove;
     vec3_t		forward, right, up;
     float		wishspeed;
     float		scale;
-    usercmd_t	cmd;
 
-    fmove = pm->cmd.forwardmove;
-    smove = pm->cmd.rightmove;
+    fmove = cmd->forwardmove;
+    smove = cmd->rightmove;
 
-    cmd = pm->cmd;
-    scale = CG_CmdScale( &cmd );
+    scale = CG_CmdScale( cmd );
 
     AngleVectors(cg.refdefViewAngles, forward, right, up);
     // project moves down to flat plane
@@ -5399,21 +5397,22 @@ static void CG_GetWishspeed(){
         wishvel[i] = forward[i]*fmove + right[i]*smove;
     }
     wishvel[2] = 0;
-    VectorCopy (wishvel, cg.wishdir);
+    VectorCopy (wishvel, cg.wishdir); //set the wishdir here for now
     wishspeed = VectorNormalize(cg.wishdir);
-    if(pm->pmove_movement != MOVEMENT_SP) {
+    if(cgs.movement != MOVEMENT_SP) {
         wishspeed *= scale;
-    }else if(pm->pmove_movement == MOVEMENT_SP) { //SP - Encourage deceleration away from the current velocity when in the air
-        if(!((qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD)) && (DotProduct (pm->ps->velocity, cg.wishdir) < 0.0f)) {
-            wishspeed *= 1.35;
+    }else if(cg.predictedPlayerState.groundEntityNum == ENTITYNUM_WORLD){
+        if(cg.wasOnGround){ //spent more than 1 frame on the ground = friction
+            wishspeed *= scale; //scale is only factored on the ground for SP
+        }else if(DotProduct (cg.predictedPlayerState.velocity, cg.wishdir) < 0.0f) {
+            wishspeed *= 1.35f;
         }
-        if((qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD)) //SP no cmdscale in air - should be applying scale on ground, making lines bounce on landings?
-        {
-            wishspeed *= scale;
-        }
+        cg.wasOnGround = qtrue;
+    } else {
+        cg.wasOnGround = qfalse;
     }
 
-    cg.wishspeed = wishspeed;
+    return wishspeed;
 }
 
 /*
@@ -5426,7 +5425,7 @@ static void CG_StrafeHelper(centity_t* cent) {
 	vec_t* velocity = cg.predictedPlayerState.velocity;
 	static vec3_t velocityAngle;
 	const float currentSpeed = cg.currentSpeed;
-	float pmAccel = 10.0f, pmAirAccel = 1.0f, pmFriction = 6.0f, frametime, optimalDeltaAngle, baseSpeed = cg.predictedPlayerState.speed;
+	float pmAccel = 10.0f, pmAirAccel = 1.0f, pmFriction = 6.0f, frametime, optimalDeltaAngle, wishspeed = cg.predictedPlayerState.speed;
 	const int moveStyle = cgs.movement;
 	int moveDir = 0;
 	qboolean onGround;
@@ -5438,34 +5437,34 @@ static void CG_StrafeHelper(centity_t* cent) {
 
 	else if (cg.snap) {
 		moveDir = cg.snap->ps.movementDir;
-		switch (moveDir) {
-		case 0: // W
-			cmd.forwardmove = 1; break;
-		case 1: // WA
-			cmd.forwardmove = 1; cmd.rightmove = -1; break;
-		case 2: // A
-			cmd.rightmove = -1;	break;
-		case 3: // AS
-			cmd.rightmove = -1;	cmd.forwardmove = -1; break;
-		case 4: // S
-			cmd.forwardmove = -1; break;
-		case 5: // SD
-			cmd.forwardmove = -1; cmd.rightmove = 1; break;
-		case 6: // D
-			cmd.rightmove = 1; break;
-		case 7: // DW
-			cmd.rightmove = 1; cmd.forwardmove = 1;	break;
-		default:
-			break;
-		}
+        switch (moveDir) {
+            case 0: // W
+                cmd.forwardmove = 127; break;
+            case 1: // WA
+                cmd.forwardmove = 127; cmd.rightmove = -127; break;
+            case 2: // A
+                cmd.rightmove = -127;	break;
+            case 3: // AS
+                cmd.rightmove = -127;	cmd.forwardmove = -127; break;
+            case 4: // S
+                cmd.forwardmove = -127; break;
+            case 5: // SD
+                cmd.forwardmove = -127; cmd.rightmove = 127; break;
+            case 6: // D
+                cmd.rightmove = 127; break;
+            case 7: // DW
+                cmd.rightmove = 127; cmd.forwardmove = 127;	break;
+            default:
+                break;
+        }
 		if (cg.snap->ps.pm_flags & PMF_JUMP_HELD)
-			cmd.upmove = 1;
+			cmd.upmove = 127;
 	}
 	else {
 		return; //No cg.snap causes this to return.
 	}
 
-	onGround = (qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD);
+	onGround = (qboolean)(cg.predictedPlayerState.groundEntityNum == ENTITYNUM_WORLD);
 
 	if (moveStyle == MOVEMENT_WSW) {
 		pmAccel = 12.0f;
@@ -5483,12 +5482,11 @@ static void CG_StrafeHelper(centity_t* cent) {
         pmAccel = 12.0f;
         pmAirAccel = 4.0f;
     }
-    if(pm->pmove_upCmdScale || moveStyle == MOVEMENT_SP){
-        CG_GetWishspeed();
-        baseSpeed = cg.wishspeed;
+    if(cgs.upCmdScale || moveStyle == MOVEMENT_SP){
+        wishspeed = CG_GetWishspeed(&cmd);
     }
 
-	if (currentSpeed < (baseSpeed - 1))
+	if (currentSpeed < (wishspeed - 1))
 		return;
 
 	if (cg_strafeHelper_FPS.value < 1)
@@ -5498,9 +5496,9 @@ static void CG_StrafeHelper(centity_t* cent) {
 	else frametime = 1 / cg_strafeHelper_FPS.value;
 
 	if (onGround)
-		optimalDeltaAngle = acos((double)((baseSpeed - (pmAccel * baseSpeed * frametime)) / (currentSpeed * (1 - pmFriction * (frametime))))) * (180.0f / M_PI) - 45.0f;
+		optimalDeltaAngle = acos((double)((wishspeed - (pmAccel * wishspeed * frametime)) / (currentSpeed * (1 - pmFriction * (frametime))))) * (180.0f / M_PI) - 45.0f;
 	else
-		optimalDeltaAngle = acos((double)((baseSpeed - (pmAirAccel * baseSpeed * frametime)) / currentSpeed)) * (180.0f / M_PI) - 45.0f;
+		optimalDeltaAngle = acos((double)((wishspeed - (pmAirAccel * wishspeed * frametime)) / currentSpeed)) * (180.0f / M_PI) - 45.0f;
 
 	if (optimalDeltaAngle < 0 || optimalDeltaAngle > 360)
 		optimalDeltaAngle = 0;
@@ -5509,7 +5507,7 @@ static void CG_StrafeHelper(centity_t* cent) {
 	vectoangles(velocity, velocityAngle); //We have the offset from our Velocity angle that we should be aiming at, so now we need to get our velocity angle.
 
 	if ((moveStyle == MOVEMENT_CPMA || moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_PJK || moveStyle == MOVEMENT_SLICK) && cg_strafeHelper.integer & SHELPER_ACCELZONES) { //Accel Zones (air control styles)
-		CG_DrawStrafeTriangles(velocityAngle, optimalDeltaAngle, baseSpeed, moveDir);
+		CG_DrawStrafeTriangles(velocityAngle, optimalDeltaAngle, wishspeed, moveDir);
 	}
 
 	if (moveStyle == MOVEMENT_CPMA || moveStyle == MOVEMENT_PJK || moveStyle == MOVEMENT_WSW || moveStyle == MOVEMENT_QW || (moveStyle == MOVEMENT_SLICK && !onGround)) {//center line (air control styles)
