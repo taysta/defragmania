@@ -896,8 +896,6 @@ Ghoul2 Insert End
 	float				lastZSpeed, lastGroundSpeed, lastJumpHeight, lastJumpDistance;
 	vec4_t				strafeHelperActiveColor;
 	vec4_t				crosshairColor;
-	vec3_t				wishdir;
-	float 				wishspeed;
 	//japro strafehelper & speedometer end
 } cg_t;
 

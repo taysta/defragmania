@@ -1145,7 +1145,7 @@ void CG_DrawHUD(centity_t	*cent)
 	}
     //Defragmania Strafe Hud
     if(cg_speedometer.integer & SPEEDOMETER_ENABLE || (cg_strafeHelper.integer & (SHELPER_UPDATED | SHELPER_CGAZ | SHELPER_WSW | SHELPER_WEZE)) || cg_movementKeys.integer){
-        CG_DrawStrafeHUD(cent);
+        DF_DrawStrafeHUD(cent);
     }
 }
 

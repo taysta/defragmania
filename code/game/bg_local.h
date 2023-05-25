@@ -53,6 +53,11 @@ extern	const	float	pm_waterfriction;
 extern	const	float	pm_flightfriction;
 
 //japro/dfmania movement parameters start
+
+extern  const   float   pm_sp_accelerate;
+extern  const   float   pm_sp_airaccelerate;
+extern  const   float   pm_sp_airDecelRate;
+
 extern	const	float	pm_vq3_duckScale;
 
 extern	const	float	pm_cpm_accelerate;
