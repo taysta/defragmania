@@ -1799,7 +1799,7 @@ qboolean CG_YourTeamHasFlag(void);
 qboolean CG_OtherTeamHasFlag(void);
 qhandle_t CG_StatusHandle(int task);
 qboolean CG_WorldCoordToScreenCoord(vec3_t worldCoord, float *x, float *y);
-
+qboolean CG_InRollAnim(centity_t *cent);
 
 //
 // cg_player.c

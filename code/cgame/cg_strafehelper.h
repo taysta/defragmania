@@ -152,52 +152,53 @@ typedef struct {
     dfcgaz          cgaz;
 } dfstate;
 
-
-/* Functions */
-static  void DF_SetStrafeHelper();
-static  dfsline DF_GetLine(int moveDir);
-static void DF_SetAngleToX(dfsline *inLine);
-static void DF_SetLineColour(dfsline* inLine, int moveDir);
 //Pmove functions
-static  float DF_GetAccelerate();
-static  float DF_GetAirAccelerate();
-static  float DF_GetAirStrafeAccelerate();
-static  float DF_GetAirStopAccelerate();
-static  float DF_GetAirStrafeWishspeed();
-static  float DF_GetFriction();
-static  float DF_GetDuckScale();
-static  qboolean DF_HasAirControl();
-static  qboolean DF_HasForceJumps();
-static  qboolean DF_HasAutoJump();
+static float DF_GetAccelerate();
+static float DF_GetAirAccelerate();
+static float DF_GetAirStrafeAccelerate();
+static float DF_GetAirStopAccelerate();
+static float DF_GetAirStrafeWishspeed();
+static float DF_GetFriction();
+static float DF_GetDuckScale();
+static qboolean DF_HasAirControl();
+static qboolean DF_HasForceJumps();
+static qboolean DF_HasAutoJump();
 
-/* Strafehelper Init */
-  void DF_DrawStrafeHUD(centity_t	*cent);
-static  void DF_StrafeHelper();
-static  void DF_SetPlayerState();
-static  void DF_SetClientReal(); //rs Real state (not a spectator/demo)
-static  void DF_SetClient(); //sn Snapshot state (not a spectator/demo)
-static  void DF_SetPhysics();
+/* Strafe HUD Init */
+void DF_DrawStrafeHUD(centity_t	*cent);
 
-/* Cgaz functions */
-//static float CGAZ_Min(dfstate *cs);
-static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed,
-                      float frametime, float friction, float airaccelerate);
-//static float CGAZ_Max(dfstate *cs)
-static void DF_SetVelocityAngles();
+/* Playerstate Init */
+static void DF_StrafeHelper();
+static void DF_SetPlayerState();
+static void DF_SetClientReal();
+static void DF_SetClient();
+static void DF_SetPhysics();
+
+/* Cgaz Init */
+static void DF_SetCGAZ();
 static void DF_SetFrameTime();
 static void DF_SetCurrentSpeed();
-static float DF_GetCmdScale(usercmd_t cmd);
+static void DF_SetVelocityAngles();
+
+static void DF_SetStrafeHelper();
+static dfsline DF_GetLine(int moveDir);
+static void DF_SetAngleToX(dfsline *inLine);
+static void DF_SetLineColour(dfsline* inLine, int moveDir);
+
+/* Cgaz functions */
+static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed,
+                      float frametime, float friction, float airaccelerate);
 static float DF_GetWishspeed(usercmd_t inCmd);
-static void DF_SetCGAZ();
+static float DF_GetCmdScale(usercmd_t cmd);
 
 /* Strafe Helper Functions */
+static void DF_DrawStrafeLine(dfsline line);
 static void	DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4_t color, float alpha, float ycutoff);
 static void DF_DrawStrafehelperWeze(int moveDir, dfsline inLine);
 static void DF_StrafeHelperSound(float difference);
-static void DF_DrawStrafeLine(dfsline line);
 static int	DF_GetStrafeTriangleAccel(void);
-static void DF_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir);
 static float* DF_GetStrafeTrianglesX(vec3_t velocity, float diff, float sensitivity);
+static void DF_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir);
 
 /* Speedometer Functions */
 static void DF_GraphAddSpeed(void);
@@ -209,12 +210,7 @@ static void DF_DrawAccelMeter(void);
 static void DF_DrawSpeedometer(void);
 
 /* Misc Functions */
-extern qboolean	CG_InRollAnim(centity_t* cent);
-extern void CG_DrawStringExt( int x, int y, const char *string, const float *setColor,
-                       qboolean forceColor, qboolean shadow, int charWidth, int charHeight, int maxChars );//Movement Keys Functions
 static float DF_GetGroundDistance(void);
 static void DF_DrawMovementKeys(centity_t* cent);
-
-/* Function Pointers */
 
 #endif //__CG_STRAFEHELPER_H_INCLUDED___

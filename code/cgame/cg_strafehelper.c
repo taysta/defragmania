@@ -6,7 +6,7 @@ static float firstSpeed;
 static float speedSamples[SPEEDOMETER_NUM_SAMPLES];
 static int oldestSpeedSample = 0;
 static int maxSpeedSample = 0;
-dfstate state;
+static dfstate state;
 
 //#todo make these work from bg_pmove so not repeated
 /* Physics Constants Getters */
@@ -207,7 +207,7 @@ void DF_DrawStrafeHUD(centity_t	*cent)
             rectDef_c speedgraphRect;
             vec4_t foreColor = { 0.0f,0.8f,1.0f,0.8f };
             vec4_t backColor = { 0.0f,0.8f,1.0f,0.0f };
-            speedgraphRect.x = (320.0f - (150.0f / 2.0f));
+            speedgraphRect.x = (cgs.screenWidth * 0.5f - (150.0f / 2.0f));
             speedgraphRect.y = cgs.screenHeight - 22 - 2;
             speedgraphRect.w = 150.0f;
             speedgraphRect.h = 22.0f;
@@ -403,7 +403,7 @@ static void DF_SetVelocityAngles()
 static void DF_SetStrafeHelper(){
     float lineWidth;
     int sensitivity = cg_strafeHelperPrecision.integer;
-    const int LINE_HEIGHT = 240; //240 is midpoint, so it should be a little higher so crosshair is always on it.
+    const int LINE_HEIGHT = (cgs.screenHeight * 0.5f - 10.0f); //240 is midpoint, so it should be a little higher so crosshair is always on it.
     const vec4_t twoKeyColor = { 1, 1, 1, 0.75f };
     const vec4_t oneKeyColor = { 0.5f, 1, 1, 0.75f };
     const vec4_t oneKeyColorAlt = { 1, 0.75f, 0.0f, 0.75f };
@@ -976,7 +976,7 @@ static void DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4
     else if (length > 2000)
         length = 2000;
     if (!ycutoff)
-        ycutoff = 480;
+        ycutoff = cgs.screenHeight;
 
     stepx = (x2 - x1) / (length / size);
     stepy = (y2 - y1) / (length / size);
@@ -984,7 +984,7 @@ static void DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4
     trap_R_SetColor(color);
 
     for (i = 0; i <= (length / size); i++) {
-        if (x1 < 640 && y1 < 480 && y1 < ycutoff)
+        if (x1 < cgs.screenWidth && y1 < cgs.screenHeight && y1 < ycutoff)
             CG_DrawPic(x1, y1, size, size, cgs.media.whiteShader);
         x1 += stepx;
         y1 += stepy;
