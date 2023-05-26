@@ -363,7 +363,7 @@ static bitInfo_T strafeTweaks[] = {
 	{"SD"},				//12
 	{"Rear"},			//13
 	{"Center"},			//14
-	{"Invert"},			//15
+	{"Max"},			//15
 	{"Line Crosshair"},	//16
 	{"Small Lines"},	//17
 	{"Accel Zones"}		//18

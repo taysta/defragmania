@@ -8,7 +8,6 @@ static int oldestSpeedSample = 0;
 static int maxSpeedSample = 0;
 static dfstate state;
 
-//#todo make these work from bg_pmove so not repeated
 /* Physics Constants Getters */
 //get the styles accelerate - acceleration on ground constant
 static float DF_GetAccelerate() {
@@ -246,23 +245,50 @@ void DF_DrawStrafeHUD(centity_t	*cent)
 }
 
 /* Strafehelper */
+
 //main strafehelper function, sets states and then calls drawstrafeline function for each keypress
 static void DF_StrafeHelper() {
-    dfsline line;
+    dfsline line, rearLine, maxLine, maxRearLine;
     int i;
     DF_SetPlayerState();
     DF_SetStrafeHelper();
 
     for(i = 0; i <= KEY_CENTER; i++){
-        line = DF_GetLine(i);
+        //normal opt angle
+        line = DF_GetLine(i, qfalse, qfalse);
         if(line.onScreen){
             DF_DrawStrafeLine(line);
         }
-        if(line.rearOnScreen){
-            line.onScreen = line.rearOnScreen;
-            line.x = line.rearX;
-            VectorCopy(line.rearAngs, line.angs);
-            DF_DrawStrafeLine(line);
+        //alternate opt angle
+        if(state.strafeHelper.rear || i == KEY_W){ //player has rear lines enabled, or it is W
+            rearLine = DF_GetLine(i, qtrue, qfalse);
+            if(rearLine.onScreen){
+                DF_DrawStrafeLine(rearLine);
+            }
+        }
+        //normal max angle - only do this in the air
+        if(!(state.onGround && state.cgaz.wasOnGround)) {
+            if ((state.strafeHelper.max || state.strafeHelper.triangles) &&
+                line.active) { //only draw max line or triangles for active key
+                maxLine = DF_GetLine(i, qfalse, qtrue); //get the max line
+                if (maxLine.onScreen) {
+                    if (state.strafeHelper.triangles) {
+                        DF_DrawTriangle(state.strafeHelper.activeOpt, state.strafeHelper.activeMax);
+                    }
+                }
+                //alternate max angle
+                if (state.strafeHelper.rear || i == KEY_W) { //always draw both lines for W
+                    maxRearLine = DF_GetLine(i, qtrue, qtrue); //get the rear max line
+                    if (maxRearLine.onScreen) { //rear max line is on the screen
+                        if (state.strafeHelper.max) {
+                            DF_DrawStrafeLine(maxRearLine);
+                        }
+                        if (state.strafeHelper.triangles) {
+                            DF_DrawTriangle(state.strafeHelper.rearOpt, state.strafeHelper.rearMax);
+                        }
+                    }
+                }
+            }
         }
     }
     if(state.onGround){
@@ -273,7 +299,7 @@ static void DF_StrafeHelper() {
 }
 
 /* Strafehelper Setters */
-//#todo make sure correct variables were chosen here for server and client, especially vieworg, and implement other predicted events with pmovesingle
+
 //sets the dfstate function used for strafehelper calculations
 static void DF_SetPlayerState()
 {
@@ -285,51 +311,31 @@ static void DF_SetPlayerState()
     {
         DF_SetClient();
     }
+    state.moveStyle = cgs.movement;
     DF_SetPhysics();
+    state.onGround = (qboolean)(cg.predictedPlayerState.groundEntityNum == ENTITYNUM_WORLD); //on ground this frame
+    state.velocity = cg.predictedPlayerState.velocity;
     VectorCopy(cg.refdef.vieworg, state.viewOrg);
+    VectorCopy(cg.refdefViewAngles, state.viewAngles);
     DF_SetCGAZ();
 }
+
 //sets parts of the dfstate struct for a non-predicted client (spectator/demo playback)
 static void DF_SetClient(){
-    state.moveStyle = pm->pmove_movement;
     state.moveDir = cg.snap->ps.movementDir;
-    switch (state.moveDir) {
-        case KEY_W: // W
-            state.cmd.forwardmove = 127; break;
-        case KEY_WA: // WA
-            state.cmd.forwardmove = 127; state.cmd.rightmove = -127; break;
-        case KEY_A: // A
-            state.cmd.rightmove = -127;	break;
-        case KEY_AS: // AS
-            state.cmd.rightmove = -127;	state.cmd.forwardmove = -127; break;
-        case KEY_S: // S
-            state.cmd.forwardmove = -127; break;
-        case KEY_SD: // SD
-            state.cmd.forwardmove = -127; state.cmd.rightmove = 127; break;
-        case KEY_D: // D
-            state.cmd.rightmove = 127; break;
-        case KEY_DW: // DW
-            state.cmd.rightmove = 127; state.cmd.forwardmove = 127;	break;
-        default:
-            break;
-    }
+    state.cmd = DF_DirToCmd(state.moveDir);
     if (cg.snap->ps.pm_flags & PMF_JUMP_HELD) {
         state.cmd.upmove = 127;
     }
-    state.onGround = (qboolean)(cg.snap->ps.groundEntityNum == ENTITYNUM_WORLD); //on ground this frame
-    state.velocity = cg.snap->ps.velocity;
-    VectorCopy(cg.refdefViewAngles, state.viewAngles);
 
 }
+
 //sets parts of the dfstate struct for a predicted client
 static void DF_SetClientReal(){
-    state.moveStyle = cgs.movement;
     state.moveDir = cg.predictedPlayerState.movementDir; //0-7 movement dir
     trap_GetUserCmd(trap_GetCurrentCmdNumber(), &state.cmd);
-    state.onGround = (qboolean)(cg.predictedPlayerState.groundEntityNum == ENTITYNUM_WORLD); //on ground this frame
-    state.velocity = cg.predictedPlayerState.velocity;
-    VectorCopy(cg.refdefViewAngles, state.viewAngles);
 }
+
 //sets the constants relative to the current movement styles physics
 static void DF_SetPhysics() {
     state.physics.stopspeed = pm_stopspeed;
@@ -351,6 +357,7 @@ static void DF_SetPhysics() {
     state.physics.hasForceJumps = DF_HasForceJumps();
     state.physics.hasAutoJump = DF_HasAutoJump();
 }
+
 //calls functions that sets values to the cgaz struct
 static void DF_SetCGAZ(){
     DF_SetFrameTime();
@@ -360,6 +367,7 @@ static void DF_SetCGAZ(){
 }
 
 /* CGAZ Setters */
+
 //sets the frametime for the cgaz struct
 static void DF_SetFrameTime(){
     float frameTime;
@@ -375,6 +383,7 @@ static void DF_SetFrameTime(){
     //set the frametime
     state.cgaz.frametime = frameTime;
 }
+
 //sets the current speed for the cgaz struct
 static void DF_SetCurrentSpeed() {
     //const vec_t* const velocity = (cent->currentState.clientNum == cg.clientNum ? cg.predictedPlayerState.velocity : cent->currentState.pos.trDelta);
@@ -384,6 +393,7 @@ static void DF_SetCurrentSpeed() {
     //set the current speed
     state.cgaz.currentSpeed = speed;
 }
+
 //sets the velocity angle for the cgaz struct
 static void DF_SetVelocityAngles()
 {
@@ -399,6 +409,7 @@ static void DF_SetVelocityAngles()
 }
 
 /* Strafehelper/Line Setters/Getters */
+
 //set the strafehelper user settings to the struct
 static void DF_SetStrafeHelper(){
     float lineWidth;
@@ -410,7 +421,7 @@ static void DF_SetStrafeHelper(){
     const vec4_t rearColor = { 0.75f, 0,1, 0.75f };
     const vec4_t activeColor = {0, 1, 0, 0.75f};
 
-    //set the default colours
+    //set the default colors
     Vector4Copy(twoKeyColor, state.strafeHelper.twoKeyColor);
     Vector4Copy(oneKeyColor, state.strafeHelper.oneKeyColor);
     Vector4Copy(oneKeyColorAlt, state.strafeHelper.oneKeyColorAlt);
@@ -446,318 +457,286 @@ static void DF_SetStrafeHelper(){
     if(cg_strafeHelper.integer & SHELPER_REAR){
         state.strafeHelper.rear = qtrue;
     }
+
+    state.strafeHelper.max = qfalse;
+    if(cg_strafeHelper.integer & SHELPER_MAX){
+        state.strafeHelper.max = qtrue;
+    }
+
+    state.strafeHelper.triangles = qfalse;
+    if(cg_strafeHelper.integer & SHELPER_ACCELZONES){
+        state.strafeHelper.triangles = qtrue;
+    }
 }
 
-//get the line struct
-static dfsline DF_GetLine(int moveDir) {
-
-    dfsline lineOut = { 0 };
-
-    qboolean active = qfalse;
-    static qboolean draw = qfalse;
-
-    float angleOpt = 0;
-    float rearOpt = 0;
-
-    float wishspeed, airAccelerate;
-    float opt;
-
-    usercmd_t fakeCmd = { 0 };
-    lineOut.rear = qfalse;
-
-    switch (moveDir) {
+//Take a moveDir and returns a cmd
+static usercmd_t DF_DirToCmd(int moveDir){
+    usercmd_t outCmd;
+    memcpy(&outCmd, &state.cmd, sizeof(usercmd_t));
+    switch(moveDir){
         case KEY_W:
-            if (cg_strafeHelper.integer & SHELPER_W) {
-                if (state.cmd.rightmove == 0 && state.cmd.forwardmove > 0) {
-                    active = qtrue;
-                }
-                if(state.physics.hasAirControl)
-                {
-                    if(!state.strafeHelper.center){
-                        draw = qtrue;
-                    } else {
-                        draw = qfalse;
-                    }
-                }
-                else
-                {
-                    draw = qtrue;
-                }
-                fakeCmd.rightmove = 0;
-                fakeCmd.forwardmove = 127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = 45.0f + opt;
-                rearOpt = -45.0f - opt;
-                lineOut.rear = qtrue;
-            }
+            outCmd.forwardmove = 127;
+            outCmd.rightmove = 0;
             break;
         case KEY_WA:
-            if (cg_strafeHelper.integer & SHELPER_WA && state.moveStyle != MOVEMENT_QW) {
-                if (state.cmd.rightmove < 0 && state.cmd.forwardmove > 0) {
-                    active = qtrue;
-                }
-                draw = qtrue;
-                fakeCmd.rightmove = -127;
-                fakeCmd.forwardmove = 127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = -90.0f - opt;
-                    lineOut.rear = qtrue;
-                }
-            }
+            outCmd.forwardmove = 127;
+            outCmd.rightmove = -127;
             break;
         case KEY_A:
-            if (cg_strafeHelper.integer & SHELPER_A) {
-                if (state.cmd.rightmove < 0 && state.cmd.forwardmove == 0) {
-                    active = qtrue;
-                }
-                if(state.physics.hasAirControl)
-                {
-                    if(!state.strafeHelper.center){
-                        draw = qtrue;
-                    } else {
-                        draw = qfalse;
-                    }
-                }
-                else
-                {
-                    draw = qtrue;
-                }
-                fakeCmd.rightmove = -127;
-                fakeCmd.forwardmove = 0;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                if(state.physics.hasAirControl && wishspeed > state.physics.airstrafewishspeed) {
-                    airAccelerate = state.physics.airstrafeaccelerate;
-                } else {
-                    airAccelerate = state.physics.airaccelerate;
-                }
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = -45.0f + opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 225.0f - opt;
-                    lineOut.rear = qtrue;
-                }
-            }
+            outCmd.forwardmove = 0;
+            outCmd.rightmove = -127;
             break;
         case KEY_AS:
-            if (cg_strafeHelper.integer & SHELPER_SA && state.moveStyle != MOVEMENT_QW) {
-                if (state.cmd.rightmove < 0 && state.cmd.forwardmove < 0) {
-                    active = qtrue;
-                }
-                draw = qtrue;
-                fakeCmd.rightmove = -127;
-                fakeCmd.forwardmove = -127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = -90 + opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 180.0f - opt;
-                    lineOut.rear = qtrue;
-                }
-            }
+            outCmd.forwardmove = -127;
+            outCmd.rightmove = -127;
             break;
         case KEY_S:
-            if (state.strafeHelper.rear && cg_strafeHelper.integer & SHELPER_S) {
-                if (state.cmd.rightmove == 0 && state.cmd.forwardmove < 0) {
-                    active = qtrue;
-                }
-                if(state.physics.hasAirControl)
-                {
-                    if(!state.strafeHelper.center){
-                        draw = qtrue;
-                    } else {
-                        draw = qfalse;
-                    }
-                }
-                else
-                {
-                    draw = qtrue;
-                }
-                fakeCmd.rightmove = 0;
-                fakeCmd.forwardmove = -127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = 225.0f + opt;
-                rearOpt = -225.0f - opt;
-                lineOut.rear = qtrue;
-            }
+            outCmd.forwardmove = -127;
+            outCmd.rightmove = 0;
             break;
         case KEY_SD:
-            if (cg_strafeHelper.integer & SHELPER_SD && state.moveStyle != MOVEMENT_QW) {
-                if (state.cmd.rightmove > 0 && state.cmd.forwardmove < 0) {
-                    active = qtrue;
-                }
-                draw = qtrue;
-                fakeCmd.rightmove = 127;
-                fakeCmd.forwardmove = -127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = 90.0f - opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 180.0f + opt;
-                    lineOut.rear = qtrue;
-                }
-                lineOut.active = active;
-                lineOut.angleOpt = angleOpt;
-            }
+            outCmd.forwardmove = -127;
+            outCmd.rightmove = 127;
             break;
         case KEY_D:
-            if (cg_strafeHelper.integer & SHELPER_D) {
-                if (state.cmd.rightmove > 0 && state.cmd.forwardmove == 0) {
-                    active = qtrue;
-                }
-                if(state.physics.hasAirControl)
-                {
-                    if(!state.strafeHelper.center){
-                        draw = qtrue;
-                    } else {
-                        draw = qfalse;
-                    }
-                }
-                else
-                {
-                    draw = qtrue;
-                }
-                fakeCmd.rightmove = 127;
-                fakeCmd.forwardmove = 0;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                if(state.physics.hasAirControl && wishspeed > state.physics.airstrafewishspeed) {
-                    airAccelerate = state.physics.airstrafeaccelerate;
-                } else {
-                    airAccelerate = state.physics.airaccelerate;
-                }
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = 45.0f - opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 135.0f + opt;
-                    lineOut.rear = qtrue;
-                }
-            }
+            outCmd.forwardmove = 0;
+            outCmd.rightmove = 127;
             break;
         case KEY_DW:
-            if (cg_strafeHelper.integer & SHELPER_WD && state.moveStyle != MOVEMENT_QW) {
-                if (state.cmd.rightmove > 0 && state.cmd.forwardmove > 0) {
-                    active = qtrue;
-                }
-                draw = qtrue;
-                fakeCmd.rightmove = 127;
-                fakeCmd.forwardmove = 127;
-                fakeCmd.upmove = state.cmd.upmove;
-                wishspeed = DF_GetWishspeed(fakeCmd);
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                opt = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate, state.cgaz.currentSpeed, wishspeed, state.cgaz.frametime, state.physics.friction, state.physics.airaccelerate) + state.strafeHelper.offset; //#todo calc cgaz here to get correct wishspeed
-                angleOpt = -opt;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 90.0f + opt;
-                    lineOut.rear = qtrue;
-                }
-            }
-            break;
-        case KEY_CENTER:
-            if (state.physics.hasAirControl && state.strafeHelper.center) {
-                if (state.cmd.forwardmove == 0 && state.cmd.rightmove != 0
-                    || state.cmd.forwardmove == 0 && state.cmd.rightmove == 0) {
-                    active = qtrue;
-                }
-                draw = qtrue;
-            } else {
-                draw = qfalse;
-            }
-            if (draw) {
-                angleOpt = 0.0f;
-                if (state.strafeHelper.rear) {
-                    rearOpt = 180.0f;
-                    lineOut.rear = qtrue;
-                }
-            }
+            outCmd.forwardmove = 127;
+            outCmd.rightmove = 127;
             break;
         default:
             break;
     }
+    return outCmd;
+}
+
+//get the line struct - ugly function but no point simplifying it past this state
+static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
+
+    dfsline lineOut = { 0 };
+
+    qboolean active = qfalse;
+    qboolean draw = qfalse;
+
+    float angle = 0;
+
+    float wishspeed, airAccelerate;
+    float delta;
+
+    //make a fake usercmd for the line we are going to get
+    usercmd_t fakeCmd = DF_DirToCmd(moveDir);
+
+    //check if the fake command matches the real command, if it does, the line is active
+    if(state.cmd.rightmove == fakeCmd.rightmove && state.cmd.forwardmove == fakeCmd.forwardmove){
+        active = qtrue;
+    } else {
+        active = qfalse;
+    }
+
+    if(moveDir % 2 == 0){ //if moveDir is even - single key press
+        if(state.physics.hasAirControl){ //air control uses the center line if on for single key presses
+            if(moveDir < KEY_CENTER){
+                if(!state.strafeHelper.center){ //only draw these keys real positions when center line is off
+                        draw = qtrue;
+                } else {
+                    draw = qfalse;
+                }
+            } else { //it's the center line
+                if (moveDir == KEY_CENTER && state.strafeHelper.center) {
+                    draw = qtrue;
+                    if (state.cmd.forwardmove == 0 && state.cmd.rightmove != 0
+                        || state.cmd.forwardmove == 0 && state.cmd.rightmove == 0) {
+                        active = qtrue; //center is active when one key is pressed
+                    } else {
+                        active = qfalse;
+                    }
+                    angle = 0.0f;  //center line
+                    if (rear) {
+                        angle = 180.0f; //rear center line
+                    }
+                } else {
+                    draw = qfalse;
+                }
+            }
+        } else if(moveDir != KEY_CENTER){ //don't draw the center line when there is no air control
+            draw = qtrue;
+        }
+    } else if (state.moveStyle != MOVEMENT_QW){ //if moveDir is odd - 2 keys pressed (QW doesn't accel on these key presses)
+        draw = qtrue;
+    } else {
+        draw = qfalse;
+    }
+    if(moveDir == KEY_S && !state.strafeHelper.rear) { //only show S lines when rear setting is on
+        draw = qfalse;
+    }
+
+    if(moveDir != KEY_CENTER) {
+        //get the wishspeed
+        wishspeed = DF_GetWishspeed(fakeCmd);
+
+        //handle air control air accelerate
+        if (moveDir == KEY_A || moveDir == KEY_D) {
+            if (!(state.onGround) && state.physics.hasAirControl && wishspeed > state.physics.airstrafewishspeed) {
+                airAccelerate = state.physics.airstrafeaccelerate;
+            } else {
+                airAccelerate = state.physics.airaccelerate;
+            }
+        }
+
+        //are we getting the optimum angle or the maximum angle
+        if (!max) {
+            delta = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate,
+                             state.cgaz.currentSpeed,
+                             wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) +
+                    state.strafeHelper.offset;
+        } else {
+            delta = CGAZ_Max(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate,
+                             state.cgaz.currentSpeed,
+                             wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) +
+                    state.strafeHelper.offset;
+        }
+
+        switch (moveDir) {
+            case KEY_W:
+                if (!(cg_strafeHelper.integer & SHELPER_W)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = 45.0f + delta;
+                    else
+                        angle = -45.0f - delta;
+                }
+                break;
+            case KEY_WA:
+                if (!(cg_strafeHelper.integer & SHELPER_WA)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = delta;
+                    else
+                        angle = -90.0f - delta;
+                }
+                break;
+            case KEY_A:
+                if (!(cg_strafeHelper.integer & SHELPER_A)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = -45.0f + delta;
+                    else
+                        angle = 225.0f - delta;
+                }
+                break;
+            case KEY_AS:
+                if (!(cg_strafeHelper.integer & SHELPER_SA)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = -90 + delta;
+                    else
+                        angle = 180.0f - delta;
+                }
+                break;
+            case KEY_S:
+                if (!(cg_strafeHelper.integer & SHELPER_S )) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = 225.0f + delta;
+                    else
+                        angle = -225.0f - delta;
+                }
+                break;
+            case KEY_SD:
+                if (!(cg_strafeHelper.integer & SHELPER_SD)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = 90.0f - delta;
+                    else
+                        angle = 180.0f + delta;
+                }
+                break;
+            case KEY_D:
+                if (!(cg_strafeHelper.integer & SHELPER_D)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = 45.0f - delta;
+                    else
+                        angle = 135.0f + delta;
+                }
+                break;
+            case KEY_DW:
+                if (!(cg_strafeHelper.integer & SHELPER_WD)) {
+                    draw = qfalse;
+                }
+                if (draw) {
+                    if(!rear)
+                        angle = -delta;
+                    else
+                        angle = 90.0f + delta;
+                }
+                break;
+            default:
+                break;
+        }
+    }
 
     if(draw){
         lineOut.active = active;
-        lineOut.angleOpt = angleOpt;
-        lineOut.rearOpt = rearOpt;
+        lineOut.angle = angle;
         DF_SetAngleToX(&lineOut);
 
-        if(lineOut.onScreen || lineOut.rearOnScreen){
-            DF_SetLineColour(&lineOut, moveDir);
+        if(lineOut.onScreen){
+            DF_SetLineColor(&lineOut, moveDir, max);
+            if(!max){
+                if(!rear){
+                    state.strafeHelper.activeOpt = lineOut.x; //store the active opt angle
+                } else {
+                    state.strafeHelper.rearOpt = lineOut.x; //store the active rear opt angle
+                }
+            } else {
+                if(!rear){
+                    state.strafeHelper.activeMax = lineOut.x; //store the active max angle
+                } else {
+                    state.strafeHelper.rearMax = lineOut.x; //store the active rear max angle
+                }
+            }
         }
     }
 
     return lineOut;
-} //#todo remove code repetition/switch case of keys
+}
 
 //get line x values to pass to drawstrafeine
 static void DF_SetAngleToX(dfsline *inLine) {
-    float y = 0;
-    vec3_t start;
-    vec3_t angs, forward, delta, line;
-    vec3_t rearAngs, rearForward, rearDelta, rearLine;
-    float x = 0;
-    float rearX = 0;
-
+    vec3_t start, angs, forward, delta, line;
+    float x = 0, y = 0;
     //get the view angles
     VectorCopy(state.viewOrg, start);
-
-    //forward x
     //get the velocity angles
     VectorCopy(state.cgaz.velocityAngles, angs);
     //set distance from velocity angles to optimum
-    angs[YAW] += inLine->angleOpt;
+    angs[YAW] += inLine->angle;
     //get forward angle
     AngleVectors(angs, forward, NULL, NULL);
     VectorCopy(angs, inLine->angs);
     // set the line length
     VectorScale(forward, state.strafeHelper.sensitivity, delta);
-
     //set the line coords
     line[0] = delta[0] + start[0];
     line[1] = delta[1] + start[1];
     line[2] = start[2];
-
     // is it on the screen?
     if (!CG_WorldCoordToScreenCoord(line, &x, &y)) {
         inLine->onScreen = qfalse;
@@ -766,42 +745,16 @@ static void DF_SetAngleToX(dfsline *inLine) {
         x -= (0.5f * state.strafeHelper.lineWidth);
         inLine->x = x;
     }
+}
 
-    if(inLine->rear == qtrue) {
-        //rear x
-        //get the velocity angles
-        VectorCopy(state.cgaz.velocityAngles, rearAngs);
-        //set distance from velocity angles to rear optimum
-        rearAngs[YAW] += inLine->rearOpt;
-        //get forward angle
-        AngleVectors(rearAngs, rearForward, NULL, NULL);
-        VectorCopy(rearAngs, inLine->rearAngs);
-        // set the line length
-        VectorScale(rearForward, state.strafeHelper.sensitivity, rearDelta);
-
-        //set the line coords
-        rearLine[0] = rearDelta[0] + start[0];
-        rearLine[1] = rearDelta[1] + start[1];
-        rearLine[2] = start[2];
-
-        // is it on the screen?
-        if (!CG_WorldCoordToScreenCoord(rearLine, &rearX, &y)) {
-            inLine->rearOnScreen = qfalse;
-        } else {
-            inLine->rearOnScreen = qtrue;
-            rearX -= (0.5f * state.strafeHelper.lineWidth);
-            inLine->rearX = rearX;
-        }
-    }
-} //#todo remove code repetition between front/rear lines
-//set the colour of the line
-static void DF_SetLineColour(dfsline* inLine, int moveDir){
+//set the color of the line
+static void DF_SetLineColor(dfsline* inLine, int moveDir, qboolean max){
     vec4_t color = { 1, 1, 1, 0.75f };
-    //get the default line colour
+    //get the default line color
     Vector4Copy(color,  inLine->color);
     //set the colors
     if (inLine->active) {
-        if (cg_strafeHelperActiveColor.value) { //does the user have a custom active colour set
+        if (cg_strafeHelperActiveColor.value) { //does the user have a custom active color set
             color[0] = cg.strafeHelperActiveColor[0];
             color[1] = cg.strafeHelperActiveColor[1];
             color[2] = cg.strafeHelperActiveColor[2];
@@ -812,8 +765,12 @@ static void DF_SetLineColour(dfsline* inLine, int moveDir){
             color[2] = state.strafeHelper.activeColor[2];
             color[3] = state.strafeHelper.activeColor[3];
         }
-        memcpy(inLine->color, color, sizeof(vec4_t));
-    } else { //set the other colours
+        if(!max) {
+            memcpy(inLine->color, color, sizeof(vec4_t));
+        } else {
+            memcpy(inLine->color, colorRed, sizeof(vec4_t)); //max is always red
+        }
+    } else { //set the other colors
         if (moveDir == KEY_WA || moveDir == KEY_DW) {
             memcpy(inLine->color, state.strafeHelper.twoKeyColor, sizeof(vec4_t));
         } else if (moveDir == KEY_A || moveDir == KEY_D) {
@@ -828,7 +785,8 @@ static void DF_SetLineColour(dfsline* inLine, int moveDir){
 }
 
 /* Strafehelper Value Calculators */
-//calculates the optimum cgaz angle //#todo implement other cgaz values (min,max)
+
+//calculates the optimum cgaz angle
 static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed, float frametime, float friction, float airaccelerate){
     float optimumDelta;
     if (onGround) {
@@ -846,8 +804,20 @@ static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, f
     }
     return optimumDelta;
 }
-//takes a user commmand and returns the emulated wishspeed as a float
 
+//calculates the maximum cgaz angle
+static float CGAZ_Max(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed, float frametime, float friction, float airaccelerate){
+    float maxDeltaAngle = 0;
+    if (!onGround) {
+        maxDeltaAngle = acos((double)((-(accelerate * wishSpeed * frametime) / (2.0f * currentSpeed)))) * (180.0f / M_PI) - 45.0f;
+    }
+    if (maxDeltaAngle < 0 || maxDeltaAngle > 360) {
+        maxDeltaAngle = 0;
+    }
+    return maxDeltaAngle;
+}
+
+//takes a user commmand and returns the emulated wishspeed as a float
 static float DF_GetWishspeed(usercmd_t inCmd){
     int         i;
     vec3_t		wishvel;
@@ -894,7 +864,8 @@ static float DF_GetWishspeed(usercmd_t inCmd){
     }
 
     return wishspeed;
-} //#todo emulate pmovesingle instead of this
+}
+
 //takes a user command and returns the emulated command scale as a float
 static float DF_GetCmdScale( usercmd_t cmd) {
     int		max;
@@ -925,6 +896,7 @@ static float DF_GetCmdScale( usercmd_t cmd) {
 }
 
 /* Strafehelper Style Distributor */
+
 //takes a strafe line and draws it according to the strafehelper style set
 static void DF_DrawStrafeLine(dfsline line) {
 
@@ -951,7 +923,7 @@ static void DF_DrawStrafeLine(dfsline line) {
         }
     }
 
-    if (cg_strafeHelper.integer & SHELPER_WSW && line.active && state.moveDir != 0) { //draw the wsw style strafehelper, not sure how to deal with multiple lines for W only so we don't draw any, the proper way is to tell which line we are closest to aiming at and display the strafehelper for that
+    if (cg_strafeHelper.integer & SHELPER_WSW && line.active) { //draw the wsw style strafehelper, not sure how to deal with multiple lines for W only so we don't draw any, the proper way is to tell which line we are closest to aiming at and display the strafehelper for that
         float width = (float)(-4.444 * AngleSubtract(state.viewAngles[YAW], line.angs[YAW]));
         CG_FillRect((0.5f * cgs.screenWidth), (0.5f * cgs.screenHeight), width, 12, colorTable[CT_RED]);
     }
@@ -960,12 +932,13 @@ static void DF_DrawStrafeLine(dfsline line) {
         DF_DrawStrafehelperWeze(state.moveDir, line);
     }
 
-    if (cg_strafeHelper.integer & SHELPER_SOUND && line.active && state.moveDir != 8) { //strafehelper sounds - don't do them for the center line, since it's not really a strafe
+    if (cg_strafeHelper.integer & SHELPER_SOUND && line.active) { //strafehelper sounds - don't do them for the center line, since it's not really a strafe
         DF_StrafeHelperSound(100 * AngleSubtract(state.viewAngles[YAW], line.angs[YAW]));
     }
-} //#todo make each strafehelper style its own function
+}
 
 /* Drawing Functions */
+
 //draws a line on the screen
 static void DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4_t color, float alpha, float ycutoff) {
     float stepx, stepy, length = (float)sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
@@ -992,13 +965,8 @@ static void DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4
     trap_R_SetColor(NULL);
 
 }
+
 //draws the weze strafehelper
-/*
-===================
-CG_DrawStrafehelperWeze
-japro - draw the weze style strafehelper(previously known as Dzikie_CG_DrawSpeed)
-===================
-*/
 static void DF_DrawStrafehelperWeze(int moveDir, dfsline inLine) {
     float length;
     float diff;
@@ -1038,133 +1006,68 @@ static void DF_DrawStrafehelperWeze(int moveDir, dfsline inLine) {
     DF_DrawLine(midx, midy, midx + state.cmd.rightmove, midy - state.cmd.forwardmove, 1, colorCyan, 0.75f, 0);
     DF_DrawLine(midx, midy, midx + length / 2 * sin(diff + optiangle), midy - length / 2 * cos(diff + optiangle), 1, colorRed, 0.75f, 0);
     DF_DrawLine(midx, midy, midx + length / 2 * sin(diff - optiangle), midy - length / 2 * cos(diff - optiangle), 1, colorRed, 0.75f, 0);
-} //#todo fix this
+}
+
 //plays the strafehelper sounds
 static void DF_StrafeHelperSound(float difference) {
     if (difference > -40.0f && difference < 10.0f) //Under aiming by a bit, but still good
         trap_S_StartLocalSound(cgs.media.hitSound4, CHAN_LOCAL_SOUND);
 }
-//draws the strafehelper triangles //#todo fix this
-static int DF_GetStrafeTriangleAccel(void) {
-    int i;
-    float t, dt;
-    float accel;
-    float newSpeed;
-    static float oldSpeed = 0.0f;
-    static float oldTime = 0.0f;
-    static float accelHistory[ACCEL_SAMPLE_COUNT] = { 0.0f };
-    static int sampleCount = 0;
 
-    t = (float)cg.time * 0.001f;
-    dt = t - oldTime;
-    if (dt < 0.0f)
+//sets the color of the triangles based on accel
+static void DF_SetAccelColor(){
+    int t, i;
+    float total, avgAccel;
+    const float currentSpeed = state.cgaz.currentSpeed;
+    static float lastSpeed = 0, previousAccels[ACCEL_SAMPLES];
+    const float accel = currentSpeed - lastSpeed;
+    static unsigned int index;
+    static int lastupdate;
+
+    lastSpeed = currentSpeed;
+    t = trap_Milliseconds();
+
+    if (t - lastupdate > 5)	//don't sample faster than this
     {
-        oldTime = t;
-    }
-    else if (dt > 0.0f) { // raw acceleration
-        newSpeed = cg.currentSpeed;
-        accel = (newSpeed - oldSpeed) / dt;
-        accelHistory[sampleCount & ACCEL_SAMPLE_MASK] = accel;
-        sampleCount++;
-        oldSpeed = newSpeed;
-        oldTime = t;
+        lastupdate = t;
+        previousAccels[index % ACCEL_SAMPLES] = accel;
+        index++;
     }
 
-    // average accel for n frames (TODO: emphasis on later frames)
-    accel = 0.0f;
-    for (i = 0; i < ACCEL_SAMPLE_COUNT; i++)
-        accel += accelHistory[i];
-    accel /= (float)(ACCEL_SAMPLE_COUNT);
-
-    return (int)(1000 * accel);
-}
-static float* DF_GetStrafeTrianglesX(vec3_t velocity, float diff, float sensitivity) {
-    vec3_t start, angs, forward, delta, line;
-    static float x, y;
-
-    //get sensitivity
-    if (cg_strafeHelperPrecision.integer < 100)
-        sensitivity = 100.0f;
-    else if (cg_strafeHelperPrecision.integer > 10000)
-        sensitivity = 10000.0f;
-
-    VectorCopy(cg.refdef.vieworg, start); //where we are looking
-
-    VectorCopy(velocity, angs); //copy our velocity vector
-    angs[YAW] += diff; //adjust the yaw angle according to the difference
-    AngleVectors(angs, forward, NULL, NULL); //adjust the angle of the vectors
-    VectorScale(forward, sensitivity, delta); //scale to where we want to be
-
-    line[0] = delta[0] + start[0]; //draw the line
-    line[1] = delta[1] + start[1];
-    line[2] = start[2];
-
-    if (!CG_WorldCoordToScreenCoord(line, &x, &y)) { //check it exists
-        return NULL;
+    total = 0;
+    for (i = 0; i < ACCEL_SAMPLES; i++) {
+        total += previousAccels[i];
+    }
+    if (!total) {
+        total = 1;
     }
 
-    return &x;
-}
-static void DF_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir) {
-    float lx, lx2, rx, rx2, lineWidth, sensitivity, accel, optimalAccel, potentialSpeed;
-    static float lWidth, rWidth, width;
-    vec4_t color1 = { 1.0f, 1.0f, 1.0f, 0.8f };
+    avgAccel = total / (float)ACCEL_SAMPLES - 0.0625f;//fucking why does it offset by this number
 
-    accel = (float)DF_GetStrafeTriangleAccel();
-    optimalAccel = wishspeed * ((float)cg.frametime / 1000.0f);
-    potentialSpeed = cg.previousSpeed * cg.previousSpeed - optimalAccel * optimalAccel + 2.0f * (250.0f * optimalAccel);
-
-    if (80.0f < ((float)sqrt(accel / potentialSpeed)) * 10.0f) { //good strafe = green
-        color1[0] = 0.0f;
-        color1[1] = 1.0f;
-        color1[2] = 0.0f;
+    if (avgAccel > 0.0f)
+    {
+        trap_R_SetColor(colorGreen);
     }
-    else if (-5000.0f > accel) { //decelerating = red
-        color1[0] = 1.0f;
-        color1[1] = 0.0f;
-        color1[2] = 0.0f;
+    else if (avgAccel < 0.0f)
+    {
+        trap_R_SetColor(colorRed);
     }
-
-    lineWidth = cg_strafeHelperLineWidth.value; //offset the triangles by half of the line width
-    if (lineWidth < 0.25f) {
-        lineWidth = 0.25f;
-    }
-    else if (lineWidth > 5.0f) {
-        lineWidth = 5.0f;
-    }
-
-    sensitivity = cg_strafeHelperPrecision.value; //set the sensitivity/precision
-
-    if (DF_GetStrafeTrianglesX(velocity, diff, sensitivity) != NULL && DF_GetStrafeTrianglesX(velocity, 90 - diff, sensitivity) != NULL) { //A
-        lx = *DF_GetStrafeTrianglesX(velocity, diff, sensitivity);
-        lx2 = *DF_GetStrafeTrianglesX(velocity, 90 - diff, sensitivity);
-        lWidth = (lx - lx2) / 2.0f;
-    }
-
-    if (DF_GetStrafeTrianglesX(velocity, -diff, sensitivity) != NULL && DF_GetStrafeTrianglesX(velocity, diff - 90, sensitivity) != NULL) { //D
-        rx = *DF_GetStrafeTrianglesX(velocity, -diff, sensitivity);
-        rx2 = *DF_GetStrafeTrianglesX(velocity, diff - 90, sensitivity);
-        rWidth = (rx2 - rx) / 2.0f;
-    }
-
-    if (lWidth && lWidth > 0 && rWidth > lWidth) { //use smaller width for both to avoid perspective stretching
-        width = lWidth;
-    }
-    else if (rWidth && rWidth > 0 && lWidth > rWidth) {
-        width = rWidth;
-    }
-
-    trap_R_SetColor(color1); //set the color
-
-    if (DF_GetStrafeTrianglesX(velocity, diff, sensitivity) != NULL) { //draw the triangles if they exist
-        CG_DrawPic(*DF_GetStrafeTrianglesX(velocity, diff, sensitivity) - width - (0.5f * lineWidth), (0.5f * cgs.screenHeight) - 4.0f, width, 8.0f, cgs.media.leftTriangle);
-    }
-    if (DF_GetStrafeTrianglesX(velocity, -diff, sensitivity) != NULL) {
-        CG_DrawPic(*DF_GetStrafeTrianglesX(velocity, -diff, sensitivity) + (0.5f * lineWidth), (0.5f * cgs.screenHeight) - 4.0f, width, 8.0f, cgs.media.rightTriangle);
+    else
+    {
+        trap_R_SetColor(colorWhite);
     }
 }
 
-/*  Speedometer */ //#todo implement new structs, remove repetition
+//draws the acceleration zone triangle
+static void DF_DrawTriangle(float start, float end) {
+    if(start <= cgs.screenWidth && start >= 0 && end <= cgs.screenWidth && end >= 0) {
+        DF_SetAccelColor();
+        CG_DrawPic(end, (0.5f * cgs.screenHeight) - 4.0f, start - end, 8.0f, cgs.media.leftTriangle);
+    }
+    trap_R_SetColor(NULL); //set the color back to null
+}
+
+/*  Speedometer */
 /*
 ===================
 CG_GraphAddSpeed
@@ -1209,7 +1112,7 @@ tremulous - speedgraph initially ported by TomArrow
 static void DF_DrawSpeedGraph(rectDef_c* rect, const vec4_t foreColor, vec4_t backColor) {
     int i;
     float val, max, top;
-    // colour of graph is interpolated between these values
+    // color of graph is interpolated between these values
     const vec3_t slow = { 0.0f, 0.0f, 1.0f };
     const vec3_t medium = { 0.0f, 1.0f, 0.0f };
     const vec3_t fast = { 1.0f, 0.0f, 0.0f };
@@ -1331,7 +1234,7 @@ static void DF_DrawVerticalSpeed(void) {
 /*
 ===================
 CG_DrawAccelMeter
-japro - Draw acceleration meter
+japro/Tremulous - Draw acceleration meter
 ===================
 */
 static void DF_DrawAccelMeter(void) {
@@ -1568,7 +1471,7 @@ static void DF_DrawSpeedometer(void) {
     }
 }
 
-/*  Movement Keys */ //#todo implement new structs, remove repetition
+/*  Movement Keys */
 /*
 ===================
 CG_GetGroundDistance

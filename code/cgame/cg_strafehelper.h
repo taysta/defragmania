@@ -17,8 +17,6 @@
 #define KEY_D       6
 #define KEY_DW      7
 #define KEY_CENTER  8
-#define KEY_REAR    9
-#define KEY_INVERT  10
 
 #define SHELPER_UPDATED			(1<<0)
 #define SHELPER_CGAZ			(1<<1)
@@ -35,7 +33,7 @@
 #define SHELPER_SD				(1<<12)
 #define SHELPER_REAR			(1<<13)
 #define SHELPER_CENTER			(1<<14)
-#define SHELPER_INVERT			(1<<15)
+#define SHELPER_MAX			    (1<<15)
 #define SHELPER_CROSSHAIR		(1<<16)
 #define SHELPER_TINY		    (1<<17)
 #define SHELPER_ACCELZONES      (1<<18)
@@ -113,16 +111,10 @@ typedef struct {
 typedef struct {
     vec4_t color;
     qboolean active;
-    float angleOpt;
-    float rearOpt;
+    float angle;
     qboolean onScreen;
-    qboolean rearOnScreen;
     float x;
-    float rearX;
-    float y;
     vec3_t angs;
-    vec3_t rearAngs;
-    qboolean rear;
 }dfsline;
 
 typedef struct {
@@ -136,7 +128,13 @@ typedef struct {
     vec4_t activeColor;
     qboolean rear;
     qboolean center;
+    qboolean max;
+    qboolean triangles;
     float offset;
+    float activeOpt;
+    float activeMax;
+    float rearOpt;
+    float rearMax;
 }dfshelp;
 
 typedef struct {
@@ -181,13 +179,14 @@ static void DF_SetCurrentSpeed();
 static void DF_SetVelocityAngles();
 
 static void DF_SetStrafeHelper();
-static dfsline DF_GetLine(int moveDir);
+static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max);
 static void DF_SetAngleToX(dfsline *inLine);
-static void DF_SetLineColour(dfsline* inLine, int moveDir);
+static void DF_SetLineColor(dfsline* inLine, int moveDir, qboolean max);
 
 /* Cgaz functions */
 static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed,
                       float frametime, float friction, float airaccelerate);
+static float CGAZ_Max(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed, float frametime, float friction, float airaccelerate);
 static float DF_GetWishspeed(usercmd_t inCmd);
 static float DF_GetCmdScale(usercmd_t cmd);
 
@@ -196,9 +195,9 @@ static void DF_DrawStrafeLine(dfsline line);
 static void	DF_DrawLine(float x1, float y1, float x2, float y2, float size, vec4_t color, float alpha, float ycutoff);
 static void DF_DrawStrafehelperWeze(int moveDir, dfsline inLine);
 static void DF_StrafeHelperSound(float difference);
-static int	DF_GetStrafeTriangleAccel(void);
-static float* DF_GetStrafeTrianglesX(vec3_t velocity, float diff, float sensitivity);
-static void DF_DrawStrafeTriangles(vec3_t velocity, float diff, float wishspeed, int moveDir);
+static void DF_SetAccelColor();
+static void DF_DrawTriangle(float start, float end);
+
 
 /* Speedometer Functions */
 static void DF_GraphAddSpeed(void);
@@ -213,4 +212,5 @@ static void DF_DrawSpeedometer(void);
 static float DF_GetGroundDistance(void);
 static void DF_DrawMovementKeys(centity_t* cent);
 
+static usercmd_t DF_DirToCmd(int moveDir);
 #endif //__CG_STRAFEHELPER_H_INCLUDED___
