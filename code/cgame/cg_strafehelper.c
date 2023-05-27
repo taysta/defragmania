@@ -179,6 +179,8 @@ static qboolean DF_HasAutoJump() {
 /* Draw HUD */
 void DF_DrawStrafeHUD(centity_t	*cent)
 {
+    //set the playerstate
+    DF_SetPlayerState(); //state.
     if (cg_strafeHelper.integer) {
         DF_StrafeHelper();
     }
@@ -248,12 +250,14 @@ void DF_DrawStrafeHUD(centity_t	*cent)
 
 //main strafehelper function, sets states and then calls drawstrafeline function for each keypress
 static void DF_StrafeHelper() {
-    dfsline line, rearLine, maxLine, rearMaxLine, activeLine, rearActiveLine;
+    dfsline line, rearLine,
+            maxLine, rearMaxLine,
+            activeLine, rearActiveLine,
+            centerLine, rearCenterLine;
     float activeOpt, rearActiveOpt, activeMax, rearActiveMax;
     int i;
 
-    //set the playerstate and strafehelper settings structs
-    DF_SetPlayerState(); //state.
+    //set strafehelper settings struct
     DF_SetStrafeHelper(); //state.strafehelper.
 
     //get the active opt line
@@ -273,7 +277,8 @@ static void DF_StrafeHelper() {
     //get the active max lines
     if((state.strafeHelper.max || state.strafeHelper.triangles) //only draw max line or triangles for active key
         && !(state.cmd.forwardmove == 0 && state.cmd.rightmove == 0) //only do this if keys are pressed
-        && !(state.onGround && state.cgaz.wasOnGround)) //only do this in the air
+        && (!(state.onGround && state.cgaz.wasOnGround) //only do this in the air
+        || state.moveStyle == MOVEMENT_SLICK)) //or if we are slick
     {
         //active max line
         maxLine = DF_GetLine(state.moveDir, qfalse, qtrue);
@@ -309,9 +314,17 @@ static void DF_StrafeHelper() {
         }
     }
 
+    //get the center lines
+    if(state.strafeHelper.center && state.physics.hasAirControl){
+        centerLine = DF_GetLine(KEY_CENTER, qfalse, qfalse);
+        if(state.strafeHelper.rear){
+            rearCenterLine = DF_GetLine(KEY_CENTER, qtrue, qfalse);
+        }
+    }
+
     //draw the inactive lines
-    for(i = 0; i <= KEY_CENTER; i++){
-        if(i != state.moveDir){ //we get the active line separately, no need to recalculate it
+    for(i = 0; i < KEY_CENTER; i++){
+        if(i != state.moveDir){ //don't need to recalc it for active
             //normal opt angle
             line = DF_GetLine(i, qfalse, qfalse);
             if(line.onScreen && !line.active){
@@ -325,6 +338,16 @@ static void DF_StrafeHelper() {
                     DF_DrawStrafeLine(rearLine);
                 }
             }
+        }
+    }
+
+    //draw the center lines
+    if(state.strafeHelper.center && state.physics.hasAirControl) {
+        if(centerLine.onScreen){
+            DF_DrawStrafeLine(centerLine);
+        }
+        if(state.strafeHelper.rear && rearCenterLine.onScreen){
+            DF_DrawStrafeLine(rearCenterLine);
         }
     }
 
@@ -569,22 +592,24 @@ static usercmd_t DF_DirToCmd(int moveDir){
 static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
     dfsline lineOut = { 0 }; //the line we will be returning
     qboolean active = qfalse, draw = qfalse;
-    float delta, angle = 0, wishspeed, airAccelerate;
+    float delta, angle = 0, wishspeed, accelerate, airAccelerate;
 
     //make a fake usercmd for the line we are going to get
     usercmd_t fakeCmd = DF_DirToCmd(moveDir);
     fakeCmd.upmove = state.cmd.upmove; //get the real upmove value
+
     //check if the fake command matches the real command, if it does, the line is active (currently pressed)
     if(state.cmd.rightmove == fakeCmd.rightmove && state.cmd.forwardmove == fakeCmd.forwardmove){
         active = qtrue;
     } else {
         active = qfalse;
     }
+
     //Here we do some checks that determine if a line should be drawn or not
     if(moveDir % 2 == 0){ //if moveDir is even - it's a single key press
         if(state.physics.hasAirControl){ //air control uses the center line if on for single key presses
             if(moveDir < KEY_CENTER){
-                if(!state.strafeHelper.center){ //only draw these keys real positions when center line is off
+                if(!state.strafeHelper.center){ //only draw these when center line is off
                     draw = qtrue;
                 } else {
                     draw = qfalse;
@@ -621,26 +646,37 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
     if(moveDir != KEY_CENTER) { //center has a fixed location
         //get the wishspeed
         wishspeed = DF_GetWishspeed(fakeCmd);
-        //handle air control air accelerate
+
+        //slick
+        if(state.moveStyle == MOVEMENT_SLICK && state.onGround && state.cgaz.wasOnGround){
+            accelerate = state.physics.airaccelerate;
+        } else {
+            accelerate = state.physics.accelerate;
+        }
+
+        //handle air control air accelerate as per its condition in bg_pmove.c
         if (moveDir == KEY_A || moveDir == KEY_D) {
-            if (!(state.onGround) && state.physics.hasAirControl && wishspeed > state.physics.airstrafewishspeed) {
+            if ((state.onGround && state.cgaz.wasOnGround) && state.physics.hasAirControl
+            && wishspeed > state.physics.airstrafewishspeed) {
                 airAccelerate = state.physics.airstrafeaccelerate;
             } else {
                 airAccelerate = state.physics.airaccelerate;
             }
         }
+
         //are we getting the optimum angle or the maximum angle
         if (!max) {
-            delta = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate,
+            delta = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, accelerate,
                              state.cgaz.currentSpeed,
                              wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) +
                     state.strafeHelper.offset;
         } else {
-            delta = CGAZ_Max(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate,
+            delta = CGAZ_Max(state.cgaz.wasOnGround && state.onGround, accelerate,
                              state.cgaz.currentSpeed,
                              wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) +
                     state.strafeHelper.offset;
         }
+
         //Now we get the angle offset by the key press and users strafehelper setting for that key press/line
         //Each keypress is offset by a difference of pi/4 (45 degrees) to its neighbour(moveDir +/- 1), and the rear
         //angle is offset by pi (180 degrees) away from it's corresponding forward angle, but doing it like this since
@@ -738,6 +774,7 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
                 break;
         }
     }
+
     //Get the screen x position of the line
     if(draw){
         lineOut.active = active;
@@ -840,7 +877,7 @@ static float CGAZ_Opt(qboolean onGround, float accelerate, float currentSpeed, f
 //calculates the maximum cgaz angle
 static float CGAZ_Max(qboolean onGround, float accelerate, float currentSpeed, float wishSpeed, float frametime, float friction, float airaccelerate){
     float maxDeltaAngle = 0;
-    if (!onGround) {
+    if (!onGround || (onGround && state.moveStyle == MOVEMENT_SLICK)) {
         maxDeltaAngle = acos((double)((-(accelerate * wishSpeed * frametime) / (2.0f * currentSpeed)))) * (180.0f / M_PI) - 45.0f;
     }
     if (maxDeltaAngle < 0 || maxDeltaAngle > 360) {
@@ -1283,7 +1320,7 @@ japro/Tremulous - Draw acceleration meter
 */
 static void DF_DrawAccelMeter(void) {
     const float optimalAccel = cg.predictedPlayerState.speed * ((float)cg.frametime / 1000.0f);
-    const float potentialSpeed = (float)sqrt(cg.previousSpeed * cg.previousSpeed - optimalAccel * optimalAccel + 2 * (250 * optimalAccel));
+    const float potentialSpeed = (float)sqrt(cg.previousSpeed * cg.previousSpeed - optimalAccel * optimalAccel + 2 * (state.cgaz.wishspeed * optimalAccel));
     float actualAccel, total, percentAccel, x;
     const float accel = cg.currentSpeed - cg.previousSpeed;
     static int t, i, previous, lastupdate;
@@ -1360,9 +1397,9 @@ static void DF_DrawSpeedometer(void) {
 
     lastSpeed = currentSpeed;
 
-    if (currentSpeed > 250 && !(cg_speedometer.integer & SPEEDOMETER_COLORS))
+    if (currentSpeed > state.cgaz.wishspeed && !(cg_speedometer.integer & SPEEDOMETER_COLORS))
     {
-        currentSpeedColor = 1 / ((currentSpeed / 250) * (currentSpeed / 250));
+        currentSpeedColor = 1 / ((currentSpeed / state.cgaz.wishspeed) * (currentSpeed / state.cgaz.wishspeed));
         colorSpeed[1] = currentSpeedColor;
         colorSpeed[2] = currentSpeedColor;
     }
@@ -1448,15 +1485,16 @@ static void DF_DrawSpeedometer(void) {
                 cg.lastGroundSpeeds[++jumpsCounter] = cg.lastGroundSpeed; //add last ground speed to the array
             }
         }
+
         if (cg_speedometer.integer & SPEEDOMETER_JUMPS) {
             if ((cg.predictedPlayerState.groundEntityNum != ENTITYNUM_NONE &&
-                 cg.predictedPlayerState.pm_time <= 0 && cg.currentSpeed < 250) || cg.currentSpeed == 0) {
+                 cg.predictedPlayerState.pm_time <= 0 && cg.currentSpeed < state.cgaz.wishspeed) || cg.currentSpeed == 0) {
                 clearOnNextJump = qtrue;
             }
             if (cg_speedometerJumps.value &&
                 (jumpsCounter < cg_speedometerJumps.integer)) { //if we are in the first n jumps
                 for (i = 0; i <= cg_speedometerJumps.integer; i++) { //print the jumps
-                    groundSpeedsColor = 1 / ((cg.lastGroundSpeeds[i] / 250) * (cg.lastGroundSpeeds[i] / 250));
+                    groundSpeedsColor = 1 / ((cg.lastGroundSpeeds[i] / state.cgaz.wishspeed) * (cg.lastGroundSpeeds[i] / state.cgaz.wishspeed));
                     Com_sprintf(speedsStr4, sizeof(speedsStr4), "%.0f", cg.lastGroundSpeeds[i]); //create the string
                     if (cg_speedometer.integer & SPEEDOMETER_JUMPSCOLORS1) { //color the string
                         colorGroundSpeeds[1] = groundSpeedsColor;
@@ -1493,13 +1531,13 @@ static void DF_DrawSpeedometer(void) {
             }
         }
 
-        groundSpeedColor = 1 / ((cg.lastGroundSpeed / 250) * (cg.lastGroundSpeed / 250));
+        groundSpeedColor = 1 / ((cg.lastGroundSpeed / state.cgaz.wishspeed) * (cg.lastGroundSpeed / state.cgaz.wishspeed));
         if (cg_jumpGoal.value && (cg_jumpGoal.value <= cg.lastGroundSpeed) && jumpsCounter == 1) {
             colorGroundSpeed[0] = groundSpeedColor;
             colorGroundSpeed[1] = 1;
             colorGroundSpeed[2] = groundSpeedColor;
         }
-        else if (cg.lastGroundSpeed > 250 && !(cg_speedometer.integer & SPEEDOMETER_COLORS)) {
+        else if (cg.lastGroundSpeed > state.cgaz.wishspeed && !(cg_speedometer.integer & SPEEDOMETER_COLORS)) {
             colorGroundSpeed[0] = 1;
             colorGroundSpeed[1] = groundSpeedColor;
             colorGroundSpeed[2] = groundSpeedColor;

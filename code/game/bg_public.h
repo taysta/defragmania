@@ -250,16 +250,16 @@ extern int bgForcePowerCost[NUM_FORCE_POWERS][NUM_FORCE_POWER_LEVELS];
 
 //japro/ratmod movement styles enum start
 typedef enum {
-	MOVEMENT_JK2 = 0,
-	MOVEMENT_PJK,
-	MOVEMENT_VQ3,
-	MOVEMENT_CPMA,
-	MOVEMENT_WSW,
-	MOVEMENT_QW,
-	MOVEMENT_SLICK,
-	MOVEMENT_SLIDE,
-	MOVEMENT_SPEED,
-    MOVEMENT_SP,
+	MOVEMENT_JK2 = 0,   //0
+	MOVEMENT_PJK,       //1
+	MOVEMENT_VQ3,       //2
+	MOVEMENT_CPMA,      //3
+	MOVEMENT_WSW,       //4
+	MOVEMENT_QW,        //5
+	MOVEMENT_SLICK,     //6
+	MOVEMENT_SLIDE,     //7
+	MOVEMENT_SPEED,     //8
+    MOVEMENT_SP,        //9
 
 	MOVEMENT_NUM_MOVEMENTS,
 } movement_t; //japro/dfmania/ratmod movement styles enum end
