@@ -792,7 +792,7 @@ static cvarTable_t cvarTable[] = { // bk001129
 	{ &cg_speedometerSize, "cg_speedometerSize", "0.75", CVAR_ARCHIVE},
 	{ &cg_jumpGoal, "cg_jumpGoal", "0", 0},
 
-	{ &cg_strafeHelper, "cg_strafeHelper", "139232", CVAR_ARCHIVE },
+	{ &cg_strafeHelper, "cg_strafeHelper", "459745", CVAR_ARCHIVE },
 	{ &cg_strafeHelper_FPS, "cg_strafeHelper_FPS", "1000", CVAR_ARCHIVE },
 	{ &cg_strafeHelperOffset, "cg_strafeHelperOffset", "0", CVAR_ARCHIVE },
 	{ &cg_strafeHelperLineWidth, "cg_strafeHelperLineWidth", "1", CVAR_ARCHIVE },
@@ -803,8 +803,8 @@ static cvarTable_t cvarTable[] = { // bk001129
 	{ &cg_crosshairColor, "cg_crosshairColor", "255 0 255 255", CVAR_ARCHIVE },
 
 	{ &cg_movementKeys, "cg_movementKeys", "0", CVAR_ARCHIVE },
-	{ &cg_movementKeysX, "cg_movementKeysX", "465", CVAR_ARCHIVE },
-	{ &cg_movementKeysY, "cg_movementKeysY", "432", CVAR_ARCHIVE },
+	{ &cg_movementKeysX, "cg_movementKeysX", "0", CVAR_ARCHIVE },
+	{ &cg_movementKeysY, "cg_movementKeysY", "0", CVAR_ARCHIVE },
 	{ &cg_movementKeysSize, "cg_movementKeysSize", "1", CVAR_ARCHIVE },
 	//japro cvars end	
 	{ &cg_MVSDK, "cg_MVSDK", MVSDK_VERSION, CVAR_ROM | CVAR_USERINFO },
