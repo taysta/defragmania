@@ -131,10 +131,6 @@ typedef struct {
     qboolean max;
     qboolean triangles;
     float offset;
-    float activeOpt;
-    float activeMax;
-    float rearOpt;
-    float rearMax;
 }dfshelp;
 
 typedef struct {

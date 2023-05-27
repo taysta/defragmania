@@ -248,49 +248,98 @@ void DF_DrawStrafeHUD(centity_t	*cent)
 
 //main strafehelper function, sets states and then calls drawstrafeline function for each keypress
 static void DF_StrafeHelper() {
-    dfsline line, rearLine, maxLine, maxRearLine;
+    dfsline line, rearLine, maxLine, rearMaxLine, activeLine, rearActiveLine;
+    float activeOpt, rearActiveOpt, activeMax, rearActiveMax;
     int i;
-    DF_SetPlayerState();
-    DF_SetStrafeHelper();
 
-    for(i = 0; i <= KEY_CENTER; i++){
-        //normal opt angle
-        line = DF_GetLine(i, qfalse, qfalse);
-        if(line.onScreen){
-            DF_DrawStrafeLine(line);
+    //set the playerstate and strafehelper settings structs
+    DF_SetPlayerState(); //state.
+    DF_SetStrafeHelper(); //state.strafehelper.
+
+    //get the active opt line
+    activeLine = DF_GetLine(state.moveDir,qfalse, qfalse);
+    if(activeLine.onScreen && activeLine.active){
+        activeOpt = activeLine.x;
+    }
+
+    //get the rear opt line
+    if(state.strafeHelper.rear || state.moveDir == KEY_W) {
+        rearActiveLine = DF_GetLine(state.moveDir, qtrue, qfalse);
+        if (rearActiveLine.onScreen && rearActiveLine.active) {
+            rearActiveOpt = rearActiveLine.x;
         }
-        //alternate opt angle
-        if(state.strafeHelper.rear || i == KEY_W){ //player has rear lines enabled, or it is W
-            rearLine = DF_GetLine(i, qtrue, qfalse);
-            if(rearLine.onScreen){
-                DF_DrawStrafeLine(rearLine);
+    }
+
+    //get the active max lines
+    if((state.strafeHelper.max || state.strafeHelper.triangles) //only draw max line or triangles for active key
+        && !(state.cmd.forwardmove == 0 && state.cmd.rightmove == 0) //only do this if keys are pressed
+        && !(state.onGround && state.cgaz.wasOnGround)) //only do this in the air
+    {
+        //active max line
+        maxLine = DF_GetLine(state.moveDir, qfalse, qtrue);
+        if(maxLine.onScreen && maxLine.active){
+            activeMax = maxLine.x;
+        }
+        //alternate active max angle
+        if (state.strafeHelper.rear || state.moveDir == KEY_W) { //always draw both lines for W
+            rearMaxLine = DF_GetLine(state.moveDir, qtrue, qtrue); //get the rear max line
+            if(rearMaxLine.onScreen && rearMaxLine.active){
+                rearActiveMax = rearMaxLine.x;
             }
         }
-        //normal max angle - only do this in the air
-        if(!(state.onGround && state.cgaz.wasOnGround)) {
-            if ((state.strafeHelper.max || state.strafeHelper.triangles) &&
-                line.active) { //only draw max line or triangles for active key
-                maxLine = DF_GetLine(i, qfalse, qtrue); //get the max line
-                if (maxLine.onScreen) {
-                    if (state.strafeHelper.triangles) {
-                        DF_DrawTriangle(state.strafeHelper.activeOpt, state.strafeHelper.activeMax);
-                    }
-                }
-                //alternate max angle
-                if (state.strafeHelper.rear || i == KEY_W) { //always draw both lines for W
-                    maxRearLine = DF_GetLine(i, qtrue, qtrue); //get the rear max line
-                    if (maxRearLine.onScreen) { //rear max line is on the screen
-                        if (state.strafeHelper.max) {
-                            DF_DrawStrafeLine(maxRearLine);
-                        }
-                        if (state.strafeHelper.triangles) {
-                            DF_DrawTriangle(state.strafeHelper.rearOpt, state.strafeHelper.rearMax);
-                        }
-                    }
+
+        //draw the active max line/triangle
+        if (maxLine.onScreen && maxLine.active) {
+            if (state.strafeHelper.max) {
+                DF_DrawStrafeLine(maxLine);
+            }
+            if (state.strafeHelper.triangles && activeLine.onScreen && activeLine.active) {
+                DF_DrawTriangle(activeOpt, activeMax);
+            }
+        }
+
+        //draw the alternate max line/triangle
+        if (rearMaxLine.onScreen && rearMaxLine.active) { //rear max line is on the screen
+            if (state.strafeHelper.max) {
+                DF_DrawStrafeLine(rearMaxLine);
+            }
+            if (state.strafeHelper.triangles && rearActiveLine.onScreen && rearActiveLine.active) {
+                DF_DrawTriangle(rearActiveOpt, rearActiveMax);
+            }
+        }
+    }
+
+    //draw the inactive lines
+    for(i = 0; i <= KEY_CENTER; i++){
+        if(i != state.moveDir){ //we get the active line separately, no need to recalculate it
+            //normal opt angle
+            line = DF_GetLine(i, qfalse, qfalse);
+            if(line.onScreen && !line.active){
+                DF_DrawStrafeLine(line);
+            }
+
+            //alternate opt angle
+            if(state.strafeHelper.rear || i == KEY_W){ //player has rear lines enabled, or it is W
+                rearLine = DF_GetLine(i, qtrue, qfalse);
+                if(rearLine.onScreen && !rearLine.active){
+                    DF_DrawStrafeLine(rearLine);
                 }
             }
         }
     }
+
+    //draw the active opt line
+    if(activeLine.onScreen && activeLine.active){
+        DF_DrawStrafeLine(activeLine);
+    }
+
+    //draw the alternate active opt line
+    if((state.strafeHelper.rear || state.moveDir == KEY_W)
+    && (rearActiveLine.onScreen && rearActiveLine.active)) {
+        DF_DrawStrafeLine(rearActiveLine);
+    }
+
+    //set wasOnGround here, we need this as friction only gets applied if on the ground for more than 1 frame
     if(state.onGround){
         state.cgaz.wasOnGround = qtrue;
     } else {
@@ -327,7 +376,6 @@ static void DF_SetClient(){
     if (cg.snap->ps.pm_flags & PMF_JUMP_HELD) {
         state.cmd.upmove = 127;
     }
-
 }
 
 //sets parts of the dfstate struct for a predicted client
@@ -446,23 +494,28 @@ static void DF_SetStrafeHelper(){
         lineWidth = 5;
     state.strafeHelper.lineWidth = lineWidth;
 
+    //set the offset
     state.strafeHelper.offset = cg_strafeHelperOffset.value * 0.01f;
 
+    //is center enabled
     state.strafeHelper.center = qfalse;
     if(cg_strafeHelper.integer & SHELPER_CENTER){
         state.strafeHelper.center = qtrue;
     }
 
+    //is rear enabled
     state.strafeHelper.rear = qfalse;
     if(cg_strafeHelper.integer & SHELPER_REAR){
         state.strafeHelper.rear = qtrue;
     }
 
+    //is max enabled
     state.strafeHelper.max = qfalse;
     if(cg_strafeHelper.integer & SHELPER_MAX){
         state.strafeHelper.max = qtrue;
     }
 
+    //is triangle enabled
     state.strafeHelper.triangles = qfalse;
     if(cg_strafeHelper.integer & SHELPER_ACCELZONES){
         state.strafeHelper.triangles = qtrue;
@@ -512,34 +565,27 @@ static usercmd_t DF_DirToCmd(int moveDir){
     return outCmd;
 }
 
-//get the line struct - ugly function but no point simplifying it past this state
+//get the line struct - big function but no point simplifying it past this state
 static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
-
-    dfsline lineOut = { 0 };
-
-    qboolean active = qfalse;
-    qboolean draw = qfalse;
-
-    float angle = 0;
-
-    float wishspeed, airAccelerate;
-    float delta;
+    dfsline lineOut = { 0 }; //the line we will be returning
+    qboolean active = qfalse, draw = qfalse;
+    float delta, angle = 0, wishspeed, airAccelerate;
 
     //make a fake usercmd for the line we are going to get
     usercmd_t fakeCmd = DF_DirToCmd(moveDir);
-
-    //check if the fake command matches the real command, if it does, the line is active
+    fakeCmd.upmove = state.cmd.upmove; //get the real upmove value
+    //check if the fake command matches the real command, if it does, the line is active (currently pressed)
     if(state.cmd.rightmove == fakeCmd.rightmove && state.cmd.forwardmove == fakeCmd.forwardmove){
         active = qtrue;
     } else {
         active = qfalse;
     }
-
-    if(moveDir % 2 == 0){ //if moveDir is even - single key press
+    //Here we do some checks that determine if a line should be drawn or not
+    if(moveDir % 2 == 0){ //if moveDir is even - it's a single key press
         if(state.physics.hasAirControl){ //air control uses the center line if on for single key presses
             if(moveDir < KEY_CENTER){
                 if(!state.strafeHelper.center){ //only draw these keys real positions when center line is off
-                        draw = qtrue;
+                    draw = qtrue;
                 } else {
                     draw = qfalse;
                 }
@@ -548,11 +594,11 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
                     draw = qtrue;
                     if (state.cmd.forwardmove == 0 && state.cmd.rightmove != 0
                         || state.cmd.forwardmove == 0 && state.cmd.rightmove == 0) {
-                        active = qtrue; //center is active when one key is pressed
+                        active = qtrue; //center is active when A/D or no keys are pressed
                     } else {
                         active = qfalse;
                     }
-                    angle = 0.0f;  //center line
+                    angle = 0.0f; //center line
                     if (rear) {
                         angle = 180.0f; //rear center line
                     }
@@ -563,7 +609,7 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
         } else if(moveDir != KEY_CENTER){ //don't draw the center line when there is no air control
             draw = qtrue;
         }
-    } else if (state.moveStyle != MOVEMENT_QW){ //if moveDir is odd - 2 keys pressed (QW doesn't accel on these key presses)
+    } else if (state.moveStyle != MOVEMENT_QW){ //if moveDir is odd - 2 keys pressed (QW doesn't accel on these keys)
         draw = qtrue;
     } else {
         draw = qfalse;
@@ -571,11 +617,10 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
     if(moveDir == KEY_S && !state.strafeHelper.rear) { //only show S lines when rear setting is on
         draw = qfalse;
     }
-
-    if(moveDir != KEY_CENTER) {
+    //Now we get the angle offset by the key press
+    if(moveDir != KEY_CENTER) { //center has a fixed location
         //get the wishspeed
         wishspeed = DF_GetWishspeed(fakeCmd);
-
         //handle air control air accelerate
         if (moveDir == KEY_A || moveDir == KEY_D) {
             if (!(state.onGround) && state.physics.hasAirControl && wishspeed > state.physics.airstrafewishspeed) {
@@ -584,7 +629,6 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
                 airAccelerate = state.physics.airaccelerate;
             }
         }
-
         //are we getting the optimum angle or the maximum angle
         if (!max) {
             delta = CGAZ_Opt(state.cgaz.wasOnGround && state.onGround, state.physics.accelerate,
@@ -597,7 +641,10 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
                              wishspeed, state.cgaz.frametime, state.physics.friction, airAccelerate) +
                     state.strafeHelper.offset;
         }
-
+        //Now we get the angle offset by the key press and users strafehelper setting for that key press/line
+        //Each keypress is offset by a difference of pi/4 (45 degrees) to its neighbour(moveDir +/- 1), and the rear
+        //angle is offset by pi (180 degrees) away from it's corresponding forward angle, but doing it like this since
+        //compiler can optimise it, and it is more readable this way.
         switch (moveDir) {
             case KEY_W:
                 if (!(cg_strafeHelper.integer & SHELPER_W)) {
@@ -691,30 +738,15 @@ static dfsline DF_GetLine(int moveDir, qboolean rear, qboolean max) {
                 break;
         }
     }
-
+    //Get the screen x position of the line
     if(draw){
         lineOut.active = active;
         lineOut.angle = angle;
         DF_SetAngleToX(&lineOut);
-
         if(lineOut.onScreen){
             DF_SetLineColor(&lineOut, moveDir, max);
-            if(!max){
-                if(!rear){
-                    state.strafeHelper.activeOpt = lineOut.x; //store the active opt angle
-                } else {
-                    state.strafeHelper.rearOpt = lineOut.x; //store the active rear opt angle
-                }
-            } else {
-                if(!rear){
-                    state.strafeHelper.activeMax = lineOut.x; //store the active max angle
-                } else {
-                    state.strafeHelper.rearMax = lineOut.x; //store the active rear max angle
-                }
-            }
         }
     }
-
     return lineOut;
 }
 
@@ -838,20 +870,21 @@ static float DF_GetWishspeed(usercmd_t inCmd){
     VectorNormalize (forward);
     VectorNormalize (right);
 
-    for ( i = 0 ; i < 2 ; i++ )
-    {
+    for ( i = 0 ; i < 2 ; i++ ) {
         wishvel[i] = forward[i]*fmove + right[i]*smove;
     }
-    wishvel[2] = 0;
+    wishvel[2] = 0; //wishdir
     wishspeed = VectorNormalize(wishvel);
 
     if(state.moveStyle != MOVEMENT_SP) {
-        wishspeed = cg.predictedPlayerState.speed;
-        if(state.physics.hasAirControl && (wishspeed > state.physics.airstrafewishspeed) && (fmove == 0 && smove != 0)){
+        wishspeed = cg.predictedPlayerState.speed; //this seems more accurate than using scale?
+        //air control has a different wishspeed when using A or D only in the air
+        if(!(state.onGround && state.cgaz.wasOnGround) && state.physics.hasAirControl &&
+        (wishspeed > state.physics.airstrafewishspeed) && (fmove == 0 && smove != 0)) {
             wishspeed = state.physics.airstrafewishspeed;
         }
     }
-
+    //SP only applies the scale when on the ground and also encourages deceleration away from current velocity
     if(state.moveStyle == MOVEMENT_SP){
         if(state.onGround){
             if(state.cgaz.wasOnGround){ //spent more than 1 frame on the ground = friction
@@ -862,7 +895,6 @@ static float DF_GetWishspeed(usercmd_t inCmd){
             wishspeed *= state.physics.airdecelrate;
         }
     }
-
     return wishspeed;
 }
 
@@ -1014,7 +1046,7 @@ static void DF_StrafeHelperSound(float difference) {
         trap_S_StartLocalSound(cgs.media.hitSound4, CHAN_LOCAL_SOUND);
 }
 
-//sets the color of the triangles based on accel
+//sets the color of the triangles based on accel - code repeated from speedometer
 static void DF_SetAccelColor(){
     int t, i;
     float total, avgAccel;
@@ -1023,6 +1055,7 @@ static void DF_SetAccelColor(){
     const float accel = currentSpeed - lastSpeed;
     static unsigned int index;
     static int lastupdate;
+    vec4_t color = {0,0,0,0};
 
     lastSpeed = currentSpeed;
     t = trap_Milliseconds();
@@ -1044,18 +1077,29 @@ static void DF_SetAccelColor(){
 
     avgAccel = total / (float)ACCEL_SAMPLES - 0.0625f;//fucking why does it offset by this number
 
-    if (avgAccel > 0.0f)
+    if (avgAccel > 0.0f) //good accel = green
     {
-        trap_R_SetColor(colorGreen);
+        color[0] = 0;
+        color[1] = 1.0f;
+        color[2] = 0;
+        color[3] = 0.4f;
     }
-    else if (avgAccel < 0.0f)
+    else if (avgAccel < 0.0f) //bad accel = red
     {
-        trap_R_SetColor(colorRed);
+        color[0] = 1.0f;
+        color[1] = 0;
+        color[2] = 0;
+        color[3] = 0.4f;
     }
-    else
+    else //no accel = white
     {
-        trap_R_SetColor(colorWhite);
+        color[0] = 1.0f;
+        color[1] = 1.0f;
+        color[2] = 1.0f;
+        color[3] = 0.4f;
     }
+    trap_R_SetColor(NULL);
+    trap_R_SetColor(color);
 }
 
 //draws the acceleration zone triangle
@@ -1507,15 +1551,17 @@ static void DF_DrawMovementKeys(centity_t* cent) {
     ps = &cg.predictedPlayerState;
     moveDir = ps->movementDir;
 
-    if (cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback) {
+    //get the current key presses from the client
+    if (cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback) { //real client
         trap_GetUserCmd(trap_GetCurrentCmdNumber(), &cmd);
     }
-    else
+    else //spectating or demo
     {
         float xyspeed = (float)sqrt(ps->velocity[0] * ps->velocity[0] + ps->velocity[1] * ps->velocity[1]);
         float zspeed = ps->velocity[2];
         static float lastZSpeed = 0.0f;
 
+        cmd = DF_DirToCmd(moveDir);
         if ((DF_GetGroundDistance() > 1 && zspeed > 8 && zspeed > lastZSpeed && !cg.snap->ps.fd.forceGripCripple) || (cg.snap->ps.pm_flags & PMF_JUMP_HELD))
             cmd.upmove = 1;
         else if ((ps->pm_flags & PMF_DUCKED) || CG_InRollAnim(cent))
@@ -1532,71 +1578,33 @@ static void DF_DrawMovementKeys(centity_t* cent) {
             cmd.buttons |= BUTTON_ALT_ATTACK;
             cmd.buttons &= ~BUTTON_ATTACK;
         }
-
-        switch (moveDir) {
-            case 0: // W
-                cmd.forwardmove = 1;
-                break;
-            case 1: // WA
-                cmd.forwardmove = 1;
-                cmd.rightmove = -1;
-                break;
-            case 2: // A
-                cmd.rightmove = -1;
-                break;
-            case 3: // AS
-                cmd.rightmove = -1;
-                cmd.forwardmove = -1;
-                break;
-            case 4: // S
-                cmd.forwardmove = -1;
-                break;
-            case 5: // SD
-                cmd.forwardmove = -1;
-                cmd.rightmove = 1;
-                break;
-            case 6: // D
-                cmd.rightmove = 1;
-                break;
-            case 7: // DW
-                cmd.rightmove = 1;
-                cmd.forwardmove = 1;
-                break;
-            default:
-                break;
-        }
     }
 
-    if (cg_movementKeys.integer == 2) {
-        w = (8 * cg_movementKeysSize.value);
+    //set positions based on which setting is used
+    if(cg_movementKeys.integer == 1) {
+        w = 16 * cg_movementKeysSize.value;
+        h = 16 * cg_movementKeysSize.value;
+        x = cgs.screenWidth * 0.5f + cg_movementKeysX.value - w * 1.5f;
+        y = cgs.screenHeight * 0.9f + cg_movementKeysY.value- h * 1.0f;
+    } else if(cg_movementKeys.integer == 2) {
+        w = 16 * cg_movementKeysSize.value;
+        h = 16 * cg_movementKeysSize.value;
+        x = cgs.screenWidth * 0.5f + cg_movementKeysX.value - w * 2.0f;
+        y = cgs.screenHeight * 0.9f + cg_movementKeysY.value- h * 1.0f;
+    } else if(cg_movementKeys.integer == 3) {
+        w = 8 * cg_movementKeysSize.value;
         h = 8 * cg_movementKeysSize.value;
         x = 0.5f * cgs.screenWidth - w * 1.5f;
         y = 0.5f * cgs.screenHeight - h * 1.5f;
-    }
-    else {
-        w = (16 * cg_movementKeysSize.value);
-        h = 16 * cg_movementKeysSize.value;
-        x = cgs.screenWidth - (cgs.screenWidth - cg_movementKeysX.integer);
-        y = cg_movementKeysY.integer;
-    }
-
-    xOffset = yOffset = 0;
-    if (cgs.newHud && cg_movementKeys.integer != 2) {
-        switch (cg_hudFiles.integer) {
-            case 0: xOffset += 26; /*492*/ yOffset -= 3;	break; //jk2hud
-            case 1: xOffset += 51; /*516*/					break; //simplehud
-            default:										break;
-        }
-
-        if (cgs.newHud) { //offset the keys if using newhud
-            yOffset += 12; //445
-        }
-
-        x += xOffset;
-        y += yOffset;
+    } else if(cg_movementKeys.integer == 4) {
+        w = 12 * cg_movementKeysSize.value;
+        h = 12 * cg_movementKeysSize.value;
+        x = 0.5f * cgs.screenWidth + cg_movementKeysX.value - w * 1.5f;
+        y = 0.9f * cgs.screenHeight+ cg_movementKeysY.value - h * 1.5f;
     }
 
-    if (cg_movementKeys.integer > 1) { //new movement keys style
+    //draw the keys
+    if (cg_movementKeys.integer == 3 || cg_movementKeys.integer == 4) { //new movement keys style
         if (cmd.upmove < 0)
             CG_DrawPic(w * 2 + x, y, w, h, cgs.media.keyCrouchOnShader2);
         if (cmd.upmove > 0)
@@ -1613,7 +1621,7 @@ static void DF_DrawMovementKeys(centity_t* cent) {
             CG_DrawPic(x, 2 * h + y, w, h, cgs.media.keyAttackOn2);
         if (cmd.buttons & BUTTON_ALT_ATTACK)
             CG_DrawPic(w * 2 + x, 2 * h + y, w, h, cgs.media.keyAltOn2);
-    } else if (cg_movementKeys.integer == 1) { //original movement keys style
+    } else if (cg_movementKeys.integer == 1 || cg_movementKeys.integer == 2) { //original movement keys style
         if (cmd.upmove < 0)
             CG_DrawPic(w * 2 + x, y, w, h, cgs.media.keyCrouchOnShader);
         else
@@ -1638,13 +1646,15 @@ static void DF_DrawMovementKeys(centity_t* cent) {
             CG_DrawPic(w * 2 + x, h + y, w, h, cgs.media.keyRightOnShader);
         else
             CG_DrawPic(w * 2 + x, h + y, w, h, cgs.media.keyRightOffShader);
-        if (cmd.buttons & BUTTON_ATTACK)
-            CG_DrawPic(w * 3 + x, y, w, h, cgs.media.keyAttackOn);
-        else
-            CG_DrawPic(w * 3 + x, y, w, h, cgs.media.keyAttackOff);
-        if (cmd.buttons & BUTTON_ALT_ATTACK)
-            CG_DrawPic(w * 3 + x, h + y, w, h, cgs.media.keyAltOn);
-        else
-            CG_DrawPic(w * 3 + x, h + y, w, h, cgs.media.keyAltOff);
+        if(cg_movementKeys.integer == 2) {
+            if (cmd.buttons & BUTTON_ATTACK)
+                CG_DrawPic(w * 3 + x, y, w, h, cgs.media.keyAttackOn);
+            else
+                CG_DrawPic(w * 3 + x, y, w, h, cgs.media.keyAttackOff);
+            if (cmd.buttons & BUTTON_ALT_ATTACK)
+                CG_DrawPic(w * 3 + x, h + y, w, h, cgs.media.keyAltOn);
+            else
+                CG_DrawPic(w * 3 + x, h + y, w, h, cgs.media.keyAltOff);
+        }
     }
 }
