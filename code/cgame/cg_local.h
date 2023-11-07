@@ -1573,6 +1573,40 @@ extern	vmCvar_t		cg_drawPlayerSprites;
 extern	vmCvar_t		cg_developer;
 extern	vmCvar_t		cg_smoothCamera;
 extern	vmCvar_t		cg_smoothCameraFPS;
+
+//tayst - snaphud start
+extern	vmCvar_t		cg_snapHud;
+extern	vmCvar_t		cg_snapHudRgba1;
+extern	vmCvar_t		cg_snapHudRgba2;
+extern	vmCvar_t		cg_snapHudY;
+extern	vmCvar_t		cg_snapHudHeight;
+extern	vmCvar_t		cg_snapHudAuto;
+extern	vmCvar_t		cg_snapHudDef;
+extern	vmCvar_t		cg_snapHudSpeed;
+extern	vmCvar_t		cg_snapHudFps;
+
+#define KEY_W       0
+#define KEY_WA      1
+#define KEY_A       2
+#define KEY_AS      3
+#define KEY_S       4
+#define KEY_SD      5
+#define KEY_D       6
+#define KEY_DW      7
+#define SNAPHUD_MAXZONES	128
+
+typedef struct {
+	int			speed;
+	float		zones[SNAPHUD_MAXZONES];
+	int			count;
+	vec2_t 		m;
+	int 		fps;
+} dfsnaphud;
+dfsnaphud snappinghud;
+
+void CG_DrawSnapHud(void);
+//tayst - snaphud end
+
 /*
 Ghoul2 Insert Start
 */

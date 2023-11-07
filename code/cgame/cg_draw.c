@@ -4314,8 +4314,10 @@ static void CG_Draw2D( void ) {
 			//Do we want to use this system again at some point?
 			//CG_DrawReward();
 		}
-    
+
 	}
+
+	CG_DrawSnapHud(); //tayst - snaphud
 
 	if (cg.snap->ps.fallingToDeath)
 	{
@@ -4425,5 +4427,166 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
  	CG_Draw2D();
 }
 
+//tayst - snaphud start
+static usercmd_t CG_DirToCmd(int moveDir){
+	usercmd_t outCmd;
+	switch(moveDir){
+		case KEY_W:
+			outCmd.forwardmove = 127;
+			outCmd.rightmove = 0;
+			break;
+		case KEY_WA:
+			outCmd.forwardmove = 127;
+			outCmd.rightmove = -127;
+			break;
+		case KEY_A:
+			outCmd.forwardmove = 0;
+			outCmd.rightmove = -127;
+			break;
+		case KEY_AS:
+			outCmd.forwardmove = -127;
+			outCmd.rightmove = -127;
+			break;
+		case KEY_S:
+			outCmd.forwardmove = -127;
+			outCmd.rightmove = 0;
+			break;
+		case KEY_SD:
+			outCmd.forwardmove = -127;
+			outCmd.rightmove = 127;
+			break;
+		case KEY_D:
+			outCmd.forwardmove = 0;
+			outCmd.rightmove = 127;
+			break;
+		case KEY_DW:
+			outCmd.forwardmove = 127;
+			outCmd.rightmove = 127;
+			break;
+		default:
+			break;
+	}
+	return outCmd;
+}
+
+void CG_FillAngleYaw(float start, float end, float viewangle, float y, float height, const float *color) {
+	float x, width, fovscale;
+	vec2_t cgamefov = { cg.refdef.fov_x, cg.refdef.fov_y };
+
+	fovscale = tan(DEG2RAD(cgamefov[0] / 2));
+	x = cgs.screenWidth / 2 + tan(DEG2RAD(viewangle + start)) / fovscale*cgs.screenWidth / 2;
+	width = abs(cgs.screenWidth*(tan(DEG2RAD(viewangle + end)) - tan(DEG2RAD(viewangle + start))) / (fovscale * 2)) + 1;
+
+	trap_R_SetColor(color);
+	trap_R_DrawStretchPic(x, y, width, height, 0, 0, 0, 0, cgs.media.whiteShader);
+	trap_R_SetColor(NULL);
+}
+
+static int QDECL sortzones(const void *a, const void *b) {
+	return *(float *)a - *(float *)b;
+}
+
+void CG_UpdateSnapHudSettings(float speed, int fps) {
+	float step;
+	snappinghud.fps = fps;
+	snappinghud.speed = speed;
+	speed /= snappinghud.fps;
+	snappinghud.count = 0;
+
+	for (step = floor(speed + 0.5) - 0.5; step>0 && snappinghud.count<SNAPHUD_MAXZONES - 2; step--) {
+		snappinghud.zones[snappinghud.count] = RAD2DEG(acos(step / speed));
+		snappinghud.count++;
+		snappinghud.zones[snappinghud.count] = RAD2DEG(asin(step / speed));
+		snappinghud.count++;
+	}
+
+	qsort(snappinghud.zones, snappinghud.count, sizeof(snappinghud.zones[0]), sortzones);
+	snappinghud.zones[snappinghud.count] = snappinghud.zones[0] + 90;
+}
+
+//tayst - snaphud
+void CG_DrawSnapHud(void)
+{
+	int i, y, h;
+	const char *t;
+	vec2_t va;
+	vec4_t	color[3];
+	float speed;
+	int fps;
+	int colorid = 0;
+	qboolean pro = qfalse;
+	struct usercmd_s inCmd = { 0 };
+
+	if (!(cg.clientNum == cg.predictedPlayerState.clientNum && !cg.demoPlayback))
+	{ //real client
+		trap_GetUserCmd(trap_GetCurrentCmdNumber(), &inCmd);
+		va[YAW] = cg.predictedPlayerState.viewangles[YAW];
+		snappinghud.m[0] = inCmd.forwardmove;
+		snappinghud.m[1] = inCmd.rightmove;
+	}
+	else if (cg.snap)
+	{ //spectating/demo playback
+		CG_DirToCmd(cg.snap->ps.movementDir);
+		va[YAW] = cg.snap->ps.viewangles[YAW];
+		snappinghud.m[0] = inCmd.forwardmove;
+		snappinghud.m[1] = inCmd.rightmove;
+	} else {
+		return;
+	}
+
+	if (!cg_draw2D.integer)
+		return;
+
+	speed = cg_snapHudSpeed.integer ? (float)cg_snapHudSpeed.integer : 250; //250 is base speed
+	fps = cg_snapHudFps.integer ? cg_snapHudFps.integer : cg_com_maxfps.integer; //uses your maxfps setting by default
+
+	if (speed != snappinghud.speed || fps != snappinghud.fps) {//set these if not set, update if changed
+		CG_UpdateSnapHudSettings(speed, fps);
+	}
+
+	y = cg_snapHudY.value;
+	h = cg_snapHudHeight.value;
+
+	switch (cg_snapHudAuto.integer) {
+		case 0:
+			va[YAW] += cg_snapHudDef.value;
+			break;
+		case 1:
+			if ((snappinghud.m[0] != 0 && snappinghud.m[1] != 0)) {
+				va[YAW] += 45;
+			}
+			else if (snappinghud.m[0] == 0 && snappinghud.m[1] == 0) {
+				va[YAW] += cg_snapHudDef.value;
+			}
+			break;
+		case 2:
+			if (snappinghud.m[0] != 0 && snappinghud.m[1] != 0) {
+				va[YAW] += 45;
+			}
+			else if (snappinghud.m[0] == 0 && snappinghud.m[1] == 0) {
+				va[YAW] += cg_snapHudDef.value;
+			}
+			break;
+	}
+
+	t = cg_snapHudRgba2.string;
+	color[1][0] = atof(COM_Parse(&t));
+	color[1][1] = atof(COM_Parse(&t));
+	color[1][2] = atof(COM_Parse(&t));
+	color[1][3] = atof(COM_Parse(&t));
+
+	t = cg_snapHudRgba1.string;
+	color[0][0] = atof(COM_Parse(&t));
+	color[0][1] = atof(COM_Parse(&t));
+	color[0][2] = atof(COM_Parse(&t));
+	color[0][3] = atof(COM_Parse(&t));
+
+	for (i = 0; i<snappinghud.count; i++) {
+		CG_FillAngleYaw(snappinghud.zones[i], snappinghud.zones[i + 1], va[YAW], y, h, color[colorid]);
+		CG_FillAngleYaw(snappinghud.zones[i] + 90, snappinghud.zones[i + 1] + 90, va[YAW], y, h, color[colorid]);
+		colorid ^= 1;
+	}
+}
+//tayst - snaphud end
 
 

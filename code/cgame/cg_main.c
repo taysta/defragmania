@@ -595,6 +595,18 @@ vmCvar_t	cg_smoothCameraFPS;
 vmCvar_t	cg_MVSDK;
 vmCvar_t	mvsdk_cgFlags;
 
+////tayst - snaphud start
+vmCvar_t cg_snapHud;
+vmCvar_t cg_snapHudRgba1;
+vmCvar_t cg_snapHudRgba2;
+vmCvar_t cg_snapHudY;
+vmCvar_t cg_snapHudHeight;
+vmCvar_t cg_snapHudAuto;
+vmCvar_t cg_snapHudDef;
+vmCvar_t cg_snapHudSpeed;
+vmCvar_t cg_snapHudFps;
+//tayst - snaphud end
+
 typedef struct {
 	vmCvar_t	*vmCvar;
 	char		*cvarName;
@@ -655,7 +667,17 @@ static cvarTable_t cvarTable[] = { // bk001129
 	{ &cg_tracerChance, "cg_tracerchance", "0.4", CVAR_CHEAT },
 	{ &cg_tracerWidth, "cg_tracerwidth", "1", CVAR_CHEAT },
 	{ &cg_tracerLength, "cg_tracerlength", "100", CVAR_CHEAT },
-
+	//tayst - snaphud start
+	{ &cg_snapHud, "cg_snapHud", "0", CVAR_ARCHIVE },
+	{ &cg_snapHudRgba1, "cg_snapHudRgba1", ".02 .1 .02 .4", CVAR_ARCHIVE },
+	{ &cg_snapHudRgba2, "cg_snapHudRgba2", ".05 .05 .05 .1", CVAR_ARCHIVE },
+	{ &cg_snapHudY, "cg_snapHudY", "248", CVAR_ARCHIVE },
+	{ &cg_snapHudHeight, "cg_snapHudHeight", "8", CVAR_ARCHIVE },
+	{ &cg_snapHudAuto, "cg_snapHudHeight", "1", CVAR_ARCHIVE },
+	{ &cg_snapHudDef, "cg_snapHudHeight", "45", CVAR_ARCHIVE },
+	{ &cg_snapHudSpeed, "cg_snapHudSpeed", "0", CVAR_ARCHIVE },
+	{ &cg_snapHudFps, "cg_snapHudFps","0", CVAR_ARCHIVE },
+	//Snaphud end
 	{ &cg_swingAngles, "cg_swingAngles", "1", 0 },
 
 	{ &cg_oldPainSounds, "cg_oldPainSounds", "0", 0 },
